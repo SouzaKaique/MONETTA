@@ -1,0 +1,74 @@
+<h1 class="page-title">Perfil</h1>
+
+@if (auth.user(); as user) {
+  <div class="stack fade-up">
+    <section class="card-m identity">
+      <app-avatar [name]="user.account_name" [url]="user.avatar_url" />
+      <div class="min-w-0">
+        <strong>{{ user.account_name }}</strong>
+        <p class="muted mb-0 text-truncate">{{ user.email }}</p>
+      </div>
+    </section>
+
+    <section class="card-m">
+      <h2 class="card-title-m mb-3">Conta</h2>
+      <form (submit)="$event.preventDefault(); saveName()">
+        <label class="form-label" for="account_name">Nome da conta</label>
+        <div class="inline">
+          <input id="account_name" class="form-control" [formControl]="name" maxlength="80" autocomplete="name" />
+          <button type="submit" class="btn btn-brand">Salvar</button>
+        </div>
+      </form>
+      @if (nameError()) { <p class="field-error">{{ nameError() }}</p> }
+      @if (nameSaved()) { <p class="field-ok">Nome atualizado.</p> }
+
+      <p class="form-label mt-3">Formas de entrar</p>
+      <ul class="methods">
+        @for (m of methods(); track m.label) {
+          <li><i class="bi {{ m.icon }}" aria-hidden="true"></i>{{ m.label }}</li>
+        }
+      </ul>
+    </section>
+
+    <section class="card-m">
+      <h2 class="card-title-m mb-3">Aparência</h2>
+      <div class="segmented" role="group" aria-label="Tema">
+        @for (t of themes; track t.value) {
+          <button type="button" [class.active]="user.theme === t.value"
+                  [attr.aria-pressed]="user.theme === t.value" (click)="setTheme(t.value)">
+            <i class="bi {{ t.icon }}" aria-hidden="true"></i>{{ t.label }}
+          </button>
+        }
+      </div>
+      @if (themeError()) { <p class="field-error">{{ themeError() }}</p> }
+    </section>
+
+    <section class="card-m">
+      <h2 class="card-title-m mb-3">{{ user.has_password ? 'Alterar senha' : 'Criar senha' }}</h2>
+      <form [formGroup]="password" (ngSubmit)="savePassword()" class="password-form">
+        @if (user.has_password) {
+          <div>
+            <label class="form-label" for="current_password">Senha atual</label>
+            <input id="current_password" class="form-control" type="password"
+                   formControlName="current_password" autocomplete="current-password" />
+          </div>
+        }
+        <div>
+          <label class="form-label" for="new_password">Nova senha</label>
+          <input id="new_password" class="form-control" type="password"
+                 formControlName="new_password" autocomplete="new-password" />
+        </div>
+        <button type="submit" class="btn btn-quiet align-self-start">Salvar senha</button>
+      </form>
+      @if (passwordError()) { <p class="field-error">{{ passwordError() }}</p> }
+      @if (passwordMessage()) { <p class="field-ok">{{ passwordMessage() }}</p> }
+    </section>
+
+    <section class="actions">
+      <button type="button" class="btn btn-quiet" (click)="logout()">
+        <i class="bi bi-box-arrow-right me-1" aria-hidden="true"></i>Sair
+      </button>
+      <button type="button" class="btn btn-quiet" (click)="logout(true)">Sair de todos os dispositivos</button>
+    </section>
+  </div>
+}

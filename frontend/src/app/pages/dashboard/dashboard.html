@@ -1,0 +1,108 @@
+<header class="head">
+  <div>
+    <h1 class="page-title">Olá, {{ firstName() }}</h1>
+    <p class="muted mb-0">Sua situação financeira do mês.</p>
+  </div>
+  @if (data()) {
+    <div class="month-picker" role="group" aria-label="Selecionar mês">
+      <button type="button" class="btn btn-quiet" aria-label="Mês anterior" [disabled]="loading()" (click)="go(-1)">
+        <i class="bi bi-chevron-left" aria-hidden="true"></i>
+      </button>
+      <span class="month-label" aria-live="polite">{{ monthLabel() }}</span>
+      <button type="button" class="btn btn-quiet" aria-label="Próximo mês" [disabled]="loading()" (click)="go(1)">
+        <i class="bi bi-chevron-right" aria-hidden="true"></i>
+      </button>
+    </div>
+  }
+</header>
+
+@if (failed()) {
+  <div class="notice notice-critical mt-4" role="alert">
+    <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
+    <span>Não foi possível carregar o dashboard.
+      <button type="button" class="link-btn" (click)="load(data()?.month)">Tentar de novo</button>
+    </span>
+  </div>
+}
+
+@if (data(); as d) {
+  @if (!d.has_data) {
+    <div class="notice notice-info mt-4">
+      <i class="bi bi-info-circle" aria-hidden="true"></i>
+      <span>Sua conta está criada e ainda não tem lançamentos. O cadastro de contas, salário e despesas chega na Etapa 2.</span>
+    </div>
+  }
+
+  @for (alert of d.alerts; track alert.message) {
+    <div class="notice mt-3" [class.notice-critical]="alert.level === 'critical'"
+         [class.notice-warning]="alert.level === 'warning'" role="status">
+      <i class="bi bi-exclamation-triangle" aria-hidden="true"></i><span>{{ alert.message }}</span>
+    </div>
+  }
+
+  <section class="hero fade-up" aria-label="Resumo">
+    <div class="hero-main">
+      @if (d.is_current_month) {
+        <p class="hero-label">Disponível para gastar</p>
+        <p class="hero-value display money">{{ money(d.summary.available_to_spend) }}</p>
+        <p class="hero-note">Já descontadas as despesas pendentes e o mínimo de segurança.</p>
+      } @else {
+        <p class="hero-label">{{ d.summary.balance === null ? 'Mês futuro' : 'Saldo ao fim do mês' }}</p>
+        <p class="hero-value display money">{{ money(d.summary.balance) }}</p>
+        <p class="hero-note">{{ d.summary.balance === null ? 'Ainda sem saldo: receitas futuras não contam como dinheiro disponível.' : 'Valor calculado com os lançamentos confirmados.' }}</p>
+      }
+    </div>
+    <dl class="hero-side">
+      <div>
+        <dt>Saldo atual</dt>
+        <dd class="money">{{ money(d.summary.balance) }}</dd>
+      </div>
+      <div>
+        <dt>Saldo projetado</dt>
+        <dd class="money">{{ money(d.summary.projected_balance) }}</dd>
+      </div>
+      <div>
+        <dt>Renda comprometida</dt>
+        <dd class="money">{{ d.summary.income_commitment_pct === null ? '—' : d.summary.income_commitment_pct + '%' }}</dd>
+        <div class="meter" role="meter" aria-label="Renda comprometida"
+             [attr.aria-valuenow]="commitmentWidth()" aria-valuemin="0" aria-valuemax="100">
+          <span [style.width.%]="commitmentWidth()"></span>
+        </div>
+      </div>
+    </dl>
+  </section>
+
+  <section class="kpis" aria-label="Indicadores do mês">
+    @for (kpi of kpis(); track kpi.label) {
+      <article class="card-m kpi" [class.pending]="kpi.value === null">
+        <h2>{{ kpi.label }}</h2>
+        <p class="money">{{ money(kpi.value) }}</p>
+        <small>{{ kpi.hint }}</small>
+      </article>
+    }
+  </section>
+
+  <section class="charts">
+    <article class="card-m">
+      <h2 class="card-title-m mb-3">Receitas e despesas</h2>
+      <app-history-chart [data]="d.history" />
+    </article>
+    <article class="card-m">
+      <h2 class="card-title-m mb-3">Gastos por categoria</h2>
+      @if (d.by_category.length) {
+        <ul class="categories">
+          @for (c of d.by_category; track c.category) {
+            <li>
+              <div class="cat-row"><span>{{ c.category }}</span><span class="money">{{ money(c.total) }}</span></div>
+              <div class="cat-track"><span [style.width.%]="barWidth(c.total)"></span></div>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="subtle mb-0">Nenhuma despesa em {{ monthLabel() }}.</p>
+      }
+    </article>
+  </section>
+} @else if (loading()) {
+  <div class="skeleton mt-4" aria-busy="true" aria-label="Carregando"></div>
+}

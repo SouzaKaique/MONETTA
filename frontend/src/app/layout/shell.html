@@ -1,0 +1,60 @@
+<aside class="sidebar">
+  <a class="wordmark display" routerLink="/">Monetta</a>
+  <nav aria-label="Navegação principal">
+    @for (item of nav; track item.path) {
+      <a class="nav-link-m" [routerLink]="item.path" routerLinkActive="active"
+         [routerLinkActiveOptions]="item.path === '/' ? exact : { exact: false }">
+        <i class="bi {{ item.icon }}" aria-hidden="true"></i>{{ item.label }}
+      </a>
+    }
+  </nav>
+  @if (auth.user(); as user) {
+    <a class="user-link" routerLink="/perfil" routerLinkActive="active">
+      <app-avatar [name]="user.account_name" [url]="user.avatar_url" />
+      <span class="user-text">
+        <strong>{{ user.account_name }}</strong>
+        <small>Ver perfil</small>
+      </span>
+    </a>
+  }
+</aside>
+
+<div class="content">
+  <header class="topbar">
+    <a class="wordmark display" routerLink="/">Monetta</a>
+    @if (auth.user(); as user) {
+      <a routerLink="/perfil" aria-label="Abrir perfil">
+        <app-avatar [name]="user.account_name" [url]="user.avatar_url" />
+      </a>
+    }
+  </header>
+  <main>
+    <router-outlet />
+  </main>
+</div>
+
+<nav class="bottom-nav" aria-label="Navegação principal">
+  @for (item of mobile; track item.path) {
+    <a [routerLink]="item.path" routerLinkActive="active" (click)="moreOpen.set(false)"
+       [routerLinkActiveOptions]="item.path === '/' ? exact : { exact: false }">
+      <i class="bi {{ item.icon }}" aria-hidden="true"></i>
+      <span>{{ item.label }}</span>
+    </a>
+  }
+  <button type="button" [class.active]="moreOpen()" [attr.aria-expanded]="moreOpen()"
+          (click)="moreOpen.set(!moreOpen())">
+    <i class="bi bi-three-dots" aria-hidden="true"></i>
+    <span>Mais</span>
+  </button>
+</nav>
+
+@if (moreOpen()) {
+  <button type="button" class="sheet-backdrop" aria-label="Fechar menu" (click)="moreOpen.set(false)"></button>
+  <div class="sheet fade-up">
+    @for (item of more; track item.path) {
+      <a [routerLink]="item.path" (click)="moreOpen.set(false)">
+        <i class="bi {{ item.icon }}" aria-hidden="true"></i>{{ item.label }}
+      </a>
+    }
+  </div>
+}

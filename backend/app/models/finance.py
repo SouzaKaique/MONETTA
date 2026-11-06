@@ -1,0 +1,81 @@
+"""Base financeira da Etapa 1. Os demais módulos entram por migração em cada etapa."""
+from datetime import date
+from decimal import Decimal
+from uuid import UUID
+
+import sqlalchemy as sa
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from ..extensions import db
+from .common import IdMixin, Money, TimestampMixin
+
+
+class AppSettings(TimestampMixin, db.Model):
+    __tablename__ = "app_settings"
+
+    user_id: Mapped[UUID] = mapped_column(
+        sa.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    theme: Mapped[str] = mapped_column(sa.String(10), default="system")  # system | light | dark
+    timezone: Mapped[str] = mapped_column(sa.String(50), default="America/Sao_Paulo")
+    safety_minimum: Mapped[Money] = mapped_column(default=Decimal("0.00"))
+
+    user: Mapped["User"] = relationship(back_populates="settings")  # noqa: F821
+
+
+class Account(IdMixin, TimestampMixin, db.Model):
+    __tablename__ = "accounts"
+
+    user_id: Mapped[UUID] = mapped_column(sa.ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(sa.String(80))
+    type: Mapped[str] = mapped_column(sa.String(20), default="checking")  # checking | savings | cash
+    opening_balance: Mapped[Money] = mapped_column(default=Decimal("0.00"))
+    opening_date: Mapped[date]
+    active: Mapped[bool] = mapped_column(default=True)
+
+
+class Category(IdMixin, TimestampMixin, db.Model):
+    __tablename__ = "categories"
+    __table_args__ = (sa.UniqueConstraint("user_id", "kind", "name"),)
+
+    user_id: Mapped[UUID] = mapped_column(sa.ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(sa.String(60))
+    kind: Mapped[str] = mapped_column(sa.String(10))  # income | expense
+    icon: Mapped[str] = mapped_column(sa.String(40), default="tag")
+    is_default: Mapped[bool] = mapped_column(default=False)
+
+
+class Transaction(IdMixin, TimestampMixin, db.Model):
+    """
+    Movimentação de receita ou despesa.
+
+    competence_date: mês a que pertence (visão por competência).
+    paid_on: dia em que o dinheiro entrou ou saiu (fluxo de caixa).
+    Só afeta saldo quando status = 'confirmed'.
+    """
+
+    __tablename__ = "transactions"
+    __table_args__ = (
+        sa.CheckConstraint("amount > 0", name="amount_positive"),
+        sa.CheckConstraint("kind IN ('income', 'expense')", name="kind_valid"),
+        sa.CheckConstraint("status IN ('pending', 'confirmed')", name="status_valid"),
+        sa.CheckConstraint("status = 'pending' OR paid_on IS NOT NULL", name="confirmed_has_paid_on"),
+        sa.UniqueConstraint("user_id", "idempotency_key"),
+        sa.Index("ix_transactions_user_competence", "user_id", "competence_date"),
+        sa.Index("ix_transactions_user_paid_on", "user_id", "paid_on"),
+    )
+
+    user_id: Mapped[UUID] = mapped_column(sa.ForeignKey("users.id", ondelete="CASCADE"))
+    account_id: Mapped[UUID | None] = mapped_column(sa.ForeignKey("accounts.id", ondelete="RESTRICT"))
+    category_id: Mapped[UUID | None] = mapped_column(sa.ForeignKey("categories.id", ondelete="RESTRICT"))
+    kind: Mapped[str] = mapped_column(sa.String(10))
+    status: Mapped[str] = mapped_column(sa.String(10), default="pending")
+    is_salary: Mapped[bool] = mapped_column(default=False)
+    description: Mapped[str] = mapped_column(sa.String(160))
+    amount: Mapped[Money]
+    competence_date: Mapped[date]
+    paid_on: Mapped[date | None]
+    notes: Mapped[str | None] = mapped_column(sa.Text)
+    idempotency_key: Mapped[str | None] = mapped_column(sa.String(64))  # evita lançamento duplicado
+
+    category: Mapped[Category | None] = relationship()
