@@ -70,6 +70,7 @@ export class ConfirmForm implements OnInit {
   }
 
   protected save(): void {
+    if (this.busy()) return;
     const value = this.form.getRawValue();
     const amount = parseMoney(value.amount);
     if (!amount || Number(amount) <= 0) {

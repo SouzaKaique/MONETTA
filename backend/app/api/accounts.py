@@ -4,7 +4,9 @@ from flask import Blueprint, g, jsonify
 from marshmallow import Schema, ValidationError, fields, validate
 
 from ..extensions import db
-from ..models import Account, Category, Recurrence, Transaction, Transfer
+from ..models import (
+    Account, CardPurchase, Category, InvoicePayment, Recurrence, Transaction, Transfer,
+)
 from .common import error, load_body, login_required
 from .finance_common import (
     MoneyField, account_payload, category_payload, check_account, owned, today, transfer_payload,
@@ -91,6 +93,7 @@ def delete_account(account_id):
         sa.exists().where(Transaction.account_id == account.id)
         | sa.exists().where(sa.or_(Transfer.from_account_id == account.id,
                                    Transfer.to_account_id == account.id))
+        | sa.exists().where(InvoicePayment.account_id == account.id)
     ))
     if used:
         return error("Esta conta tem movimentações. Desative-a para preservar o histórico.", 409)
@@ -188,6 +191,7 @@ def delete_category(category_id):
     used = db.session.scalar(sa.select(
         sa.exists().where(Transaction.category_id == category.id)
         | sa.exists().where(Recurrence.category_id == category.id)
+        | sa.exists().where(CardPurchase.category_id == category.id)
     ))
     if used:
         return error("Esta categoria está em uso e não pode ser excluída.", 409)

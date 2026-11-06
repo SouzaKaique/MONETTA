@@ -1,8 +1,10 @@
 """Validação e serialização compartilhadas pelas rotas financeiras."""
 from uuid import UUID
 
+import sqlalchemy as sa
 from flask import abort, g
 from marshmallow import ValidationError, fields, validate
+from sqlalchemy.exc import IntegrityError
 
 from ..extensions import db
 from ..models import Account, Category, Recurrence, Transaction, Transfer
@@ -50,6 +52,29 @@ def check_category(category_id: UUID | None, kind: str) -> None:
 
 def today():
     return today_for(g.user.settings)
+
+
+def find_by_key(model, key: str | None):
+    """Registro já criado com esta Idempotency-Key, se houver."""
+    if not key:
+        return None
+    return db.session.scalar(sa.select(model).filter_by(user_id=g.user.id, idempotency_key=key))
+
+
+def save_once(model, key: str | None):
+    """
+    Grava a transação. Se dois envios iguais chegarem juntos, a constraint barra o
+    segundo: aí a resposta é o registro do primeiro, não um erro. Retorna esse registro.
+    """
+    try:
+        db.session.commit()
+        return None
+    except IntegrityError:
+        db.session.rollback()
+        existing = find_by_key(model, key)
+        if existing is None:
+            raise
+        return existing
 
 
 def category_payload(category: Category) -> dict:

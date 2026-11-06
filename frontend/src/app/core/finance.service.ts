@@ -2,7 +2,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { Observable, tap } from 'rxjs';
 import {
-  Account, Category, Dashboard, Kind, Recurrence, Transaction, TransactionPage, Transfer,
+  Account, CardDetail, Category, CreditCard, Dashboard, Installment, Invoice, InvoiceDetail, Kind,
+  Purchase, Recurrence, Transaction, TransactionPage, Transfer,
 } from './models';
 
 export interface TransactionFilters {
@@ -119,5 +120,58 @@ export class FinanceService {
 
   deleteRecurrence(id: string): Observable<unknown> {
     return this.changed(this.http.delete(`/api/recurrences/${id}`));
+  }
+
+  cards(): Observable<CreditCard[]> {
+    return this.http.get<CreditCard[]>('/api/cards');
+  }
+
+  card(id: string): Observable<CardDetail> {
+    return this.http.get<CardDetail>(`/api/cards/${id}`);
+  }
+
+  saveCard(body: object, id?: string): Observable<CreditCard> {
+    return this.changed(
+      id ? this.http.patch<CreditCard>(`/api/cards/${id}`, body)
+         : this.http.post<CreditCard>('/api/cards', body),
+    );
+  }
+
+  deleteCard(id: string): Observable<unknown> {
+    return this.changed(this.http.delete(`/api/cards/${id}`));
+  }
+
+  invoice(id: string): Observable<InvoiceDetail> {
+    return this.http.get<InvoiceDetail>(`/api/invoices/${id}`);
+  }
+
+  payInvoice(id: string, body: object, idempotencyKey: string): Observable<Invoice> {
+    return this.changed(this.http.post<Invoice>(`/api/invoices/${id}/payments`, body, {
+      headers: { 'Idempotency-Key': idempotencyKey },
+    }));
+  }
+
+  deleteInvoicePayment(id: string): Observable<unknown> {
+    return this.changed(this.http.delete(`/api/invoice-payments/${id}`));
+  }
+
+  purchases(cardId: string): Observable<Purchase[]> {
+    return this.http.get<Purchase[]>(`/api/cards/${cardId}/purchases`);
+  }
+
+  createPurchase(cardId: string, body: object, idempotencyKey: string): Observable<Purchase> {
+    return this.changed(this.http.post<Purchase>(`/api/cards/${cardId}/purchases`, body, {
+      headers: { 'Idempotency-Key': idempotencyKey },
+    }));
+  }
+
+  deletePurchase(id: string): Observable<unknown> {
+    return this.changed(this.http.delete(`/api/purchases/${id}`));
+  }
+
+  installments(month: string): Observable<{ items: Installment[]; total: string }> {
+    return this.http.get<{ items: Installment[]; total: string }>('/api/installments', {
+      params: { month },
+    });
   }
 }

@@ -107,6 +107,22 @@ def test_idempotency_key_evita_duplicar(client, account):
     assert client.get("/api/transactions?kind=expense").json["count"] == 1
 
 
+def test_envios_simultaneos_com_a_mesma_chave_nao_dao_erro(client, account, monkeypatch):
+    """A primeira checagem não vê o registro, como acontece quando dois envios chegam juntos."""
+    from app.api import transactions
+
+    calls = iter([None])
+    monkeypatch.setattr(transactions, "find_by_key", lambda model, key: next(calls, None))
+    body = {"kind": "expense", "description": "Café", "amount": "9.90",
+            "competence_date": "2026-03-10", "account_id": account["id"]}
+    headers = WEB | {"Idempotency-Key": "corrida-1"}
+    first = client.raw.post("/api/transactions", json=body, headers=headers)
+    second = client.raw.post("/api/transactions", json=body, headers=headers)
+    assert first.status_code == 201
+    assert second.status_code == 200 and second.json["id"] == first.json["id"]
+    assert client.get("/api/transactions?kind=expense").json["count"] == 1
+
+
 def test_confirmar_e_desfazer(client, account):
     tx = expense(client, account, status="pending").json
     assert balance(client) == "1000.00"

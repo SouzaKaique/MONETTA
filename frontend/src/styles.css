@@ -296,7 +296,7 @@ a:focus-visible, button:focus-visible {
   padding: 0.4rem 0.8rem;
 }
 .segmented button.active { background: var(--surface); box-shadow: var(--shadow); color: var(--ink); }
-.segmented.tabs { max-width: 280px; }
+.segmented.tabs { max-width: 360px; }
 .segmented.compact button { padding: 0.2rem 0.7rem; }
 
 .filters {
@@ -320,3 +320,13 @@ a:focus-visible, button:focus-visible {
   .row-main { flex-basis: 60%; }
   .row-actions { justify-content: flex-end; margin-left: auto; width: 100%; }
 }
+
+/* Cores de identificação dos cartões: as mesmas nos dois temas */
+.card-forest { background: #123c2f; }
+.card-graphite { background: #2b2f2e; }
+.card-wine { background: #5b2333; }
+.card-navy { background: #1e3350; }
+.card-ochre { background: #6f5118; }
+.card-plum { background: #43294f; }
+
+.tag-ok { background: var(--accent-soft); color: var(--accent); }

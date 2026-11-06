@@ -39,7 +39,11 @@
 </button>
 
 @if (quickExpense()) {
-  <app-transaction-form kind="expense" (closed)="quickExpense.set(false)" />
+  <app-transaction-form kind="expense" [allowCard]="true" (useCard)="quickPurchase.set(true)"
+                        (closed)="quickExpense.set(false)" />
+}
+@if (quickPurchase()) {
+  <app-purchase-form (closed)="quickPurchase.set(false)" />
 }
 
 <nav class="bottom-nav" aria-label="Navegação principal">

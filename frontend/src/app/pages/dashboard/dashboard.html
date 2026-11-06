@@ -40,7 +40,7 @@
       @if (d.is_current_month) {
         <p class="hero-label">Disponível para gastar</p>
         <p class="hero-value display money">{{ money(d.summary.available_to_spend) }}</p>
-        <p class="hero-note">Já descontadas as despesas pendentes e o mínimo de segurança.</p>
+        <p class="hero-note">Já descontadas as despesas pendentes, as faturas do mês e o mínimo de segurança.</p>
       } @else {
         <p class="hero-label">{{ d.summary.balance === null ? 'Mês futuro' : 'Saldo ao fim do mês' }}</p>
         <p class="hero-value display money">{{ money(d.summary.balance) }}</p>

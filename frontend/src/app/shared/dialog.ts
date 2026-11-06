@@ -7,7 +7,7 @@ import { AfterViewInit, Component, ElementRef, input, output, viewChild } from '
     <dialog #dialog (close)="closed.emit()" (cancel)="closed.emit()">
       <header>
         <h2>{{ heading() }}</h2>
-        <button type="button" class="close" aria-label="Fechar" (click)="dialog.close()">
+        <button type="button" class="close" aria-label="Fechar" (click)="close()">
           <i class="bi bi-x-lg" aria-hidden="true"></i>
         </button>
       </header>
@@ -51,5 +51,7 @@ export class Dialog implements AfterViewInit {
 
   close(): void {
     this.dialog().nativeElement.close();
+    // O evento nativo só dispara quando a página desenha; em segundo plano ele não chega.
+    this.closed.emit();
   }
 }

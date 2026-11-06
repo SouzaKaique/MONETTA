@@ -77,7 +77,7 @@ export class IncomePage {
       { label: 'Despesas fixas', value: s.expenses_fixed },
       { label: 'Despesas variáveis', value: s.expenses_variable },
       { label: 'Dinheiro livre', value: s.free_money, hint: 'Renda prevista menos despesas' },
-      { label: 'Cartões', value: s.card_commitment, hint: 'Disponível na Etapa 3' },
+      { label: 'Cartões', value: s.card_commitment, hint: 'Parcelas que vencem no mês' },
       { label: 'Dívidas', value: s.debt_payments, hint: 'Disponível na Etapa 4' },
       { label: 'Reservas', value: s.reserves, hint: 'Disponível na Etapa 6' },
     ];

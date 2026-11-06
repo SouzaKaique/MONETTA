@@ -44,7 +44,14 @@ export const routes: Routes = [
         path: 'configuracoes',
         loadComponent: () => import('./pages/settings/settings').then((m) => m.SettingsPage),
       },
-      { path: 'cartoes', ...upcoming('Cartões de crédito', 3, 'Limites, faturas, compras parceladas e pagamentos.') },
+      {
+        path: 'cartoes',
+        loadComponent: () => import('./pages/cards/cards').then((m) => m.CardsPage),
+      },
+      {
+        path: 'cartoes/:id',
+        loadComponent: () => import('./pages/cards/card-detail').then((m) => m.CardDetailPage),
+      },
       { path: 'dividas', ...upcoming('Dívidas', 4, 'Histórico de pagamentos, estratégias de quitação e simulador.') },
       { path: 'planejamento', ...upcoming('Planejamento', 5, 'Orçamento mensal, simulador até o próximo salário e Modo Recuperação.') },
       { path: 'calendario', ...upcoming('Calendário', 5, 'Tudo o que entra e sai, dia a dia.') },

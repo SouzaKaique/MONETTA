@@ -41,10 +41,11 @@ export interface DashboardSummary {
   overdue_expenses: string;
   available_to_spend: Money;
   projected_balance: Money;
-  card_commitment: Money;
+  card_commitment: string;
+  open_invoices: string;
+  overdue_invoices: string;
   debt_payments: Money;
   reserves: Money;
-  open_invoices: Money;
   pending_debts: Money;
   saved_total: Money;
 }
@@ -133,6 +134,75 @@ export interface Recurrence {
   payment_method: string | null;
   notes: string | null;
   amount_history: { amount: string; effective_from: string }[];
+}
+
+export interface CreditCard {
+  id: string;
+  name: string;
+  institution: string | null;
+  credit_limit: string;
+  closing_day: number;
+  due_day: number;
+  color: string;
+  active: boolean;
+  used: string;
+  available: string;
+  usage_pct: number | null;
+  current_invoice: string;
+  future_invoices: string;
+  remaining_installments: number;
+  next_due_date: string | null;
+  next_due_amount: string;
+}
+
+export type InvoiceStatus = 'future' | 'open' | 'closed' | 'partial' | 'paid' | 'overdue';
+
+export interface Invoice {
+  id: string;
+  card_id: string;
+  card_name: string;
+  month: string;
+  closing_date: string;
+  due_date: string;
+  total: string;
+  paid: string;
+  remaining: string;
+  status: InvoiceStatus;
+}
+
+export interface Installment {
+  id: string;
+  purchase_id: string;
+  description: string;
+  number: number;
+  count: number;
+  amount: string;
+  purchase_date: string;
+  category_name: string | null;
+  card_name: string;
+  due_date: string | null;
+}
+
+export interface InvoiceDetail extends Invoice {
+  installments: Installment[];
+  payments: { id: string; amount: string; paid_on: string; account_name: string }[];
+}
+
+export interface CardDetail extends CreditCard {
+  invoices: Invoice[];
+  spending: { month: string; total: string }[];
+}
+
+export interface Purchase {
+  id: string;
+  card_id: string;
+  description: string;
+  total_amount: string;
+  purchase_date: string;
+  installment_count: number;
+  category_name: string | null;
+  first_due_date: string | null;
+  last_due_date: string | null;
 }
 
 export interface Transfer {

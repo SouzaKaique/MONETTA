@@ -66,11 +66,12 @@ serviço de envio de e-mail.
 
 **Etapa 2:** `recurrences`, `recurrence_amounts`, `recurrence_skips`, `transfers`.
 
+**Etapa 3:** `credit_cards`, `invoices`, `card_purchases`, `installments`, `invoice_payments`.
+
 **Nas próximas etapas, por migração:**
 
 | Etapa | Tabelas |
 |---|---|
-| 3 | `credit_cards`, `invoices`, `card_purchases`, `installments` |
 | 4 | `debts`, `debt_payments` |
 | 5 | `budgets`, `notifications`, `financial_events` |
 | 6 | `wishlist_items`, `savings_goals`, `goal_contributions` |
@@ -97,6 +98,23 @@ serviço de envio de e-mail.
 - **Excluir uma ocorrência:** fica registrado em `recurrence_skips`, para ela não reaparecer.
 - **Pausar:** remove as pendências a partir de hoje. Ao reativar, os meses da pausa não são criados.
 - **Excluir a regra:** remove as pendências e mantém o que já foi confirmado.
+
+## Cartões
+
+- **Despesa uma única vez:** cada parcela conta como despesa no mês de vencimento da sua fatura.
+  Essa é a data de contabilização; a data da compra fica guardada à parte.
+- **Pagamento de fatura:** reduz o saldo da conta e o que falta pagar. Nunca entra em despesas.
+- **Disponível para gastar:** desconta o que falta pagar das faturas que vencem até o fim do mês.
+  Parcelas futuras comprometem os meses delas, e não o mês atual.
+- **Fatura:** identificada pelo mês de vencimento, com as datas gravadas. Mudar os dias do cartão
+  só afeta faturas que ainda não fecharam.
+- **Em qual fatura a compra cai:** compra até o dia do fechamento entra nela; depois, na seguinte.
+  Como isso varia entre bancos, a compra aceita escolher a primeira fatura.
+- **Limite usado:** todas as parcelas ainda não pagas, inclusive futuras.
+- **Compras antigas:** parcelas informadas como já pagas ficam sem fatura, fora de despesas e limite.
+- **Pagamento parcial:** o restante fica na própria fatura. Juros do rotativo não são calculados.
+- **Idempotência:** compras, pagamentos e lançamentos aceitam `Idempotency-Key`. Em envios
+  simultâneos, a constraint barra o segundo e a resposta é o registro já criado.
 
 ## Identidade visual
 

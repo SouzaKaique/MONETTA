@@ -98,7 +98,7 @@ def test_mes_passado_nao_tem_disponivel_e_futuro_nao_tem_saldo(client, user):
 
 def test_modulos_futuros_nao_fingem_zero(client, user):
     s = get(client)["summary"]
-    assert s["open_invoices"] is None and s["pending_debts"] is None and s["saved_total"] is None
+    assert s["pending_debts"] is None and s["saved_total"] is None and s["reserves"] is None
 
 
 def test_comprometimento_e_alerta(client, user):

@@ -13,7 +13,8 @@ from ..services.periods import month_bounds, parse_month
 from ..services.recurrences import generate, generation_horizon, skip_occurrence
 from .common import error, load_body, login_required
 from .finance_common import (
-    MoneyField, PaymentField, check_account, check_category, owned, today, transaction_payload,
+    MoneyField, PaymentField, check_account, check_category, find_by_key, owned, save_once, today,
+    transaction_payload,
 )
 
 bp = Blueprint("transactions", __name__, url_prefix="/api/transactions")
@@ -138,9 +139,7 @@ def create_transaction():
     if key:
         if len(key) > 64:
             return error("Idempotency-Key inválida.", 400)
-        existing = db.session.scalar(
-            sa.select(Transaction).filter_by(user_id=g.user.id, idempotency_key=key)
-        )
+        existing = find_by_key(Transaction, key)
         if existing:
             return jsonify(transaction_payload(existing)), 200
 
@@ -156,7 +155,9 @@ def create_transaction():
     data["description"] = data["description"].strip()
     tx = Transaction(user_id=g.user.id, idempotency_key=key, **data)
     db.session.add(tx)
-    db.session.commit()
+    duplicate = save_once(Transaction, key)
+    if duplicate:
+        return jsonify(transaction_payload(duplicate)), 200
     return jsonify(transaction_payload(tx)), 201
 
 

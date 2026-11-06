@@ -1,0 +1,56 @@
+.back { text-decoration: none; }
+
+.limit-head { display: flex; justify-content: space-between; margin-bottom: 0.4rem; }
+.usage { background: var(--surface-2); border-radius: 3px; height: 8px; overflow: hidden; }
+.usage span { background: var(--series-1); display: block; height: 100%; }
+.usage.high span { background: var(--negative); }
+
+.figures {
+  display: grid;
+  gap: 0.75rem 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  margin: 1rem 0 0;
+}
+.figures dt { color: var(--ink-3); font-size: 0.75rem; font-weight: 400; }
+.figures dd { font-weight: 600; margin: 0; }
+
+.invoice-tabs {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+.invoice-tabs button {
+  align-items: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  font-size: 0.875rem;
+  font-weight: 500;
+  gap: 0.15rem;
+  min-width: 112px;
+  padding: 0.5rem 0.65rem;
+}
+.invoice-tabs button.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.invoice-tabs small { color: var(--ink-2); }
+
+.invoice-title { font-size: 0.875rem; font-weight: 600; margin: 0; }
+
+.two-col {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+}
+
+.spending { display: grid; gap: 0.7rem; list-style: none; margin: 0; padding: 0; }
+.spend-row { display: flex; font-size: 0.875rem; justify-content: space-between; margin-bottom: 0.2rem; }
+.spend-track { background: var(--surface-2); border-radius: 3px; height: 6px; overflow: hidden; }
+.spend-track span { background: var(--series-1); border-radius: 3px; display: block; height: 100%; }
+
+@media (max-width: 767.98px) {
+  .two-col { grid-template-columns: minmax(0, 1fr); }
+}

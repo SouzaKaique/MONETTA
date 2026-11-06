@@ -14,6 +14,7 @@ import sqlalchemy as sa
 
 from ..extensions import db
 from ..models import Account, AppSettings, Category, Recurrence, Transaction
+from . import cards
 from .balances import ZERO, total_balance
 from .periods import month_bounds, shift_month, today_for
 from .recurrences import generate, generation_horizon
@@ -54,22 +55,26 @@ def _history(user_id: UUID, year: int, month: int) -> list[dict]:
             "month": f"{y:04d}-{m:02d}",
             "income": _month_total(user_id, start, end, Transaction.kind == "income",
                                    Transaction.status == "confirmed"),
-            "expenses": _month_total(user_id, start, end, Transaction.kind == "expense"),
+            "expenses": _month_total(user_id, start, end, Transaction.kind == "expense")
+            + cards.installments_total(user_id, start, end),
         })
     return rows
 
 
 def _by_category(user_id: UUID, start: date, end: date) -> list[dict]:
     rows = db.session.execute(
-        sa.select(Category.name, sa.func.sum(Transaction.amount).label("total"))
+        sa.select(Category.name, sa.func.sum(Transaction.amount))
         .select_from(Transaction)
         .outerjoin(Category, Transaction.category_id == Category.id)
         .where(Transaction.user_id == user_id, Transaction.kind == "expense",
                Transaction.competence_date.between(start, end))
         .group_by(Category.name)
-        .order_by(sa.text("total DESC"))
     ).all()
-    return [{"category": name or "Sem categoria", "total": total} for name, total in rows]
+    totals = {name: total for name, total in rows}
+    for name, total in cards.installments_by_category(user_id, start, end).items():
+        totals[name] = totals.get(name, ZERO) + total
+    ordered = sorted(totals.items(), key=lambda item: item[1], reverse=True)
+    return [{"category": name or "Sem categoria", "total": total} for name, total in ordered]
 
 
 def _alerts(summary: dict, is_current: bool) -> list[dict]:
@@ -103,7 +108,9 @@ def build_dashboard(user_id: UUID, settings: AppSettings, year: int, month: int)
     expenses_paid = _month_total(user_id, start, end, is_expense, confirmed)
     expenses_pending = _month_total(user_id, start, end, is_expense, pending)
     expenses_fixed = _month_total(user_id, start, end, is_expense, Transaction.is_fixed)
-    expenses_total = expenses_paid + expenses_pending
+    # Compras no cartão entram aqui, pelas parcelas; pagar a fatura não soma de novo.
+    card_commitment = cards.installments_total(user_id, start, end)
+    expenses_total = expenses_paid + expenses_pending + card_commitment
 
     income_received = salary_received + extra_income
     # Previsto entra aqui só para medir comprometimento, nunca no saldo.
@@ -123,7 +130,7 @@ def build_dashboard(user_id: UUID, settings: AppSettings, year: int, month: int)
         "expenses_paid": expenses_paid,
         "expenses_pending": expenses_pending,
         "expenses_fixed": expenses_fixed,
-        "expenses_variable": expenses_total - expenses_fixed,
+        "expenses_variable": expenses_total - expenses_fixed - card_commitment,
         "income_commitment_pct": commitment,
         # Dinheiro livre do mês por competência: não é saldo em conta.
         "free_money": income_expected - expenses_total,
@@ -132,17 +139,22 @@ def build_dashboard(user_id: UUID, settings: AppSettings, year: int, month: int)
         # Só faz sentido no mês corrente e nunca conta receita futura.
         "available_to_spend": None,
         "projected_balance": None,
+        "card_commitment": card_commitment,
+        "open_invoices": cards.invoices_due_between(user_id, start, end),
+        "overdue_invoices": ZERO,
         # Dependem de módulos das próximas etapas.
-        "card_commitment": None,
         "debt_payments": None,
         "reserves": None,
-        "open_invoices": None,
         "pending_debts": None,
         "saved_total": None,
     }
     if is_current:
-        open_until_month_end = pending_expenses_until(user_id, end)
+        # Obrigações do mês: lançamentos pendentes e o que falta das faturas, sem sobreposição.
+        open_until_month_end = (
+            pending_expenses_until(user_id, end) + cards.invoices_due_until(user_id, end)
+        )
         summary["overdue_expenses"] = pending_expenses_until(user_id, start - timedelta(days=1))
+        summary["overdue_invoices"] = cards.invoices_due_until(user_id, start - timedelta(days=1))
         summary["projected_balance"] = balance - open_until_month_end
         summary["available_to_spend"] = max(
             ZERO, balance - open_until_month_end - settings.safety_minimum
@@ -166,5 +178,6 @@ def build_dashboard(user_id: UUID, settings: AppSettings, year: int, month: int)
         "summary": summary,
         "history": _history(user_id, year, month),
         "by_category": _by_category(user_id, start, end),
-        "alerts": _alerts(summary, is_current),
+        "alerts": _alerts(summary, is_current)
+        + (cards.card_alerts(user_id, today) if is_current else []),
     }

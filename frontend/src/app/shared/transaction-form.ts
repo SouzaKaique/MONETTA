@@ -13,6 +13,11 @@ import { Dialog } from './dialog';
   imports: [ReactiveFormsModule, RouterLink, Dialog],
   template: `
     <app-dialog #dialog [heading]="heading()" (closed)="closed.emit()">
+      @if (allowCard()) {
+        <button type="button" class="btn btn-quiet btn-sm w-100 mb-3" (click)="switchToCard()">
+          <i class="bi bi-credit-card me-1" aria-hidden="true"></i>Foi no cartão de crédito?
+        </button>
+      }
       <form [formGroup]="form" (ngSubmit)="save()" novalidate>
         <div class="mb-3">
           <label class="form-label" for="tx-amount">Valor</label>
@@ -84,7 +89,9 @@ export class TransactionForm implements OnInit {
 
   readonly kind = input.required<Kind>();
   readonly transaction = input<Transaction | null>(null);
+  readonly allowCard = input(false);
   readonly closed = output<void>();
+  readonly useCard = output<void>();
 
   private readonly dialog = viewChild.required(Dialog);
   protected readonly methods = PAYMENT_METHODS;
@@ -138,11 +145,17 @@ export class TransactionForm implements OnInit {
     });
   }
 
+  protected switchToCard(): void {
+    this.useCard.emit();
+    this.dialog().close();
+  }
+
   protected setPaid(value: boolean): void {
     this.paid.set(value);
   }
 
   protected save(): void {
+    if (this.busy()) return;
     this.error.set(null);
     const amount = parseMoney(this.form.controls.amount.value);
     if (!amount || Number(amount) <= 0) {

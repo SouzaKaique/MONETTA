@@ -48,7 +48,8 @@ export class DashboardPage {
       { label: 'Receitas extras', value: s.extra_income, hint: 'Somente confirmadas' },
       { label: 'Total de despesas', value: s.expenses_total, hint: `${formatMoney(s.expenses_paid)} pagas` },
       { label: 'Despesas pendentes', value: s.expenses_pending, hint: 'Ainda não pagas' },
-      { label: 'Faturas em aberto', value: s.open_invoices, hint: 'Disponível na Etapa 3' },
+      { label: 'Gastos no cartão', value: s.card_commitment, hint: 'Parcelas que vencem no mês' },
+      { label: 'Faturas em aberto', value: s.open_invoices, hint: 'Falta pagar neste mês' },
       { label: 'Dívidas pendentes', value: s.pending_debts, hint: 'Disponível na Etapa 4' },
       { label: 'Valor economizado', value: s.saved_total, hint: 'Disponível na Etapa 6' },
     ];

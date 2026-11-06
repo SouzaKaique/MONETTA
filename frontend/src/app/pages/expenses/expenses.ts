@@ -1,10 +1,11 @@
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { Subscription, debounceTime } from 'rxjs';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FinanceService } from '../../core/finance.service';
-import { formatMoney, parseMoney, todayIso } from '../../core/format';
-import { Account, Category, DashboardSummary, TransactionPage } from '../../core/models';
+import { formatDate, formatMoney, parseMoney, todayIso } from '../../core/format';
+import { Account, Category, DashboardSummary, Installment, TransactionPage } from '../../core/models';
 import { MonthPicker } from '../../shared/month-picker';
 import { RecurrenceList } from '../../shared/recurrence-list';
 import { TransactionForm } from '../../shared/transaction-form';
@@ -12,7 +13,7 @@ import { TransactionRows } from '../../shared/transaction-rows';
 
 @Component({
   selector: 'app-expenses',
-  imports: [ReactiveFormsModule, MonthPicker, RecurrenceList, TransactionForm, TransactionRows],
+  imports: [ReactiveFormsModule, RouterLink, MonthPicker, RecurrenceList, TransactionForm, TransactionRows],
   template: `
     <header class="page-head">
       <div>
@@ -27,6 +28,8 @@ import { TransactionRows } from '../../shared/transaction-rows';
               [attr.aria-selected]="tab() === 'all'" (click)="tab.set('all')">Lançamentos</button>
       <button type="button" role="tab" [class.active]="tab() === 'fixed'"
               [attr.aria-selected]="tab() === 'fixed'" (click)="tab.set('fixed')">Fixas</button>
+      <button type="button" role="tab" [class.active]="tab() === 'card'"
+              [attr.aria-selected]="tab() === 'card'" (click)="tab.set('card')">Cartão</button>
     </div>
 
     @if (failed()) {
@@ -36,7 +39,35 @@ import { TransactionRows } from '../../shared/transaction-rows';
       </div>
     }
 
-    @if (tab() === 'fixed') {
+    @if (tab() === 'card') {
+      <section class="card-m mt-3">
+        <div class="section-head">
+          <h2 class="card-title-m">
+            Parcelas do mês · <span class="money">{{ money(card()?.total) }}</span>
+          </h2>
+          <a class="btn btn-quiet btn-sm" routerLink="/cartoes">Ver cartões</a>
+        </div>
+        @if (card()?.items?.length) {
+          <ul class="rows">
+            @for (item of card()!.items; track item.id) {
+              <li class="row-item">
+                <div class="row-main">
+                  <strong>{{ item.description }}</strong>
+                  <span class="row-meta">
+                    {{ item.card_name }} · vence em {{ date(item.due_date) }}
+                    @if (item.count > 1) { · parcela {{ item.number }} de {{ item.count }} }
+                    @if (item.category_name) { · {{ item.category_name }} }
+                  </span>
+                </div>
+                <span class="row-amount money">− {{ money(item.amount) }}</span>
+              </li>
+            }
+          </ul>
+        } @else if (card()) {
+          <p class="subtle mb-0">Nenhuma parcela vence neste mês.</p>
+        }
+      </section>
+    } @else if (tab() === 'fixed') {
       <section class="stat-grid" aria-label="Comprometimento com despesas fixas">
         <article class="card-m stat">
           <h2>Fixas neste mês</h2>
@@ -107,7 +138,7 @@ export class ExpensesPage {
   private request?: Subscription;
 
   protected readonly month = signal(todayIso().slice(0, 7));
-  protected readonly tab = signal<'all' | 'fixed'>('all');
+  protected readonly tab = signal<'all' | 'fixed' | 'card'>('all');
   protected readonly page = signal(1);
   protected readonly creating = signal(false);
   protected readonly failed = signal(false);
@@ -115,7 +146,9 @@ export class ExpensesPage {
   protected readonly summary = signal<DashboardSummary | null>(null);
   protected readonly categories = signal<Category[]>([]);
   protected readonly accounts = signal<Account[]>([]);
+  protected readonly card = signal<{ items: Installment[]; total: string } | null>(null);
   protected readonly money = formatMoney;
+  protected readonly date = formatDate;
 
   protected readonly filters = new FormGroup({
     q: new FormControl('', { nonNullable: true }),
@@ -170,5 +203,6 @@ export class ExpensesPage {
     }).subscribe({ next: (d) => this.data.set(d), error: fail });
     this.finance.dashboard(month).subscribe({ next: (d) => this.summary.set(d.summary), error: fail });
     this.finance.accounts().subscribe({ next: (a) => this.accounts.set(a), error: fail });
+    this.finance.installments(month).subscribe({ next: (c) => this.card.set(c), error: fail });
   }
 }

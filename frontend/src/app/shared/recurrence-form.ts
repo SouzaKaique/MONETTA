@@ -167,6 +167,7 @@ export class RecurrenceForm implements OnInit {
   }
 
   protected save(): void {
+    if (this.busy()) return;
     this.error.set(null);
     const value = this.form.getRawValue();
     const amount = parseMoney(value.amount);
