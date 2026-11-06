@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 from ..extensions import db
 from ..models import Account, AppSettings, Category, Recurrence, Transaction
-from . import cards
+from . import cards, debts
 from .balances import ZERO, total_balance
 from .periods import month_bounds, shift_month, today_for
 from .recurrences import generate, generation_horizon
@@ -115,7 +115,11 @@ def build_dashboard(user_id: UUID, settings: AppSettings, year: int, month: int)
     income_received = salary_received + extra_income
     # Previsto entra aqui só para medir comprometimento, nunca no saldo.
     income_expected = income_received + salary_expected + extra_expected
-    commitment = round(expenses_total / income_expected * 100) if income_expected > 0 else None
+    # Dívidas ficam fora de despesas, mas comprometem a renda do mesmo jeito.
+    debt_paid = debts.paid_between(user_id, start, end)
+    debt_due = debts.due_in_month(user_id, start, end) if not is_past else ZERO
+    committed = expenses_total + debt_paid + debt_due
+    commitment = round(committed / income_expected * 100) if income_expected > 0 else None
 
     balance = total_balance(user_id, end if is_past else today) if start <= today else None
 
@@ -133,7 +137,7 @@ def build_dashboard(user_id: UUID, settings: AppSettings, year: int, month: int)
         "expenses_variable": expenses_total - expenses_fixed - card_commitment,
         "income_commitment_pct": commitment,
         # Dinheiro livre do mês por competência: não é saldo em conta.
-        "free_money": income_expected - expenses_total,
+        "free_money": income_expected - committed,
         "safety_minimum": settings.safety_minimum,
         "overdue_expenses": ZERO,
         # Só faz sentido no mês corrente e nunca conta receita futura.
@@ -142,16 +146,19 @@ def build_dashboard(user_id: UUID, settings: AppSettings, year: int, month: int)
         "card_commitment": card_commitment,
         "open_invoices": cards.invoices_due_between(user_id, start, end),
         "overdue_invoices": ZERO,
+        "debt_payments": debt_paid,
+        "debt_due": debt_due,
+        "pending_debts": debts.total_balance(user_id),
         # Dependem de módulos das próximas etapas.
-        "debt_payments": None,
         "reserves": None,
-        "pending_debts": None,
         "saved_total": None,
     }
     if is_current:
         # Obrigações do mês: lançamentos pendentes e o que falta das faturas, sem sobreposição.
         open_until_month_end = (
-            pending_expenses_until(user_id, end) + cards.invoices_due_until(user_id, end)
+            pending_expenses_until(user_id, end)
+            + cards.invoices_due_until(user_id, end)
+            + debt_due
         )
         summary["overdue_expenses"] = pending_expenses_until(user_id, start - timedelta(days=1))
         summary["overdue_invoices"] = cards.invoices_due_until(user_id, start - timedelta(days=1))
@@ -179,5 +186,6 @@ def build_dashboard(user_id: UUID, settings: AppSettings, year: int, month: int)
         "history": _history(user_id, year, month),
         "by_category": _by_category(user_id, start, end),
         "alerts": _alerts(summary, is_current)
-        + (cards.card_alerts(user_id, today) if is_current else []),
+        + (cards.card_alerts(user_id, today) + debts.debt_alerts(user_id, today)
+           if is_current else []),
     }

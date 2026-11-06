@@ -3,6 +3,7 @@ from flask import Blueprint, g, jsonify
 from marshmallow import Schema, fields, validate
 
 from ..extensions import db
+from ..services.debts import STRATEGIES
 from ..services.security import hash_password, revoke_all_sessions, verify_password
 from .common import error, load_body, login_required, user_payload
 
@@ -13,6 +14,7 @@ class ProfileSchema(Schema):
     account_name = fields.String(validate=validate.Length(min=2, max=80))
     theme = fields.String(validate=validate.OneOf(["system", "light", "dark"]))
     safety_minimum = fields.Decimal(places=2, validate=validate.Range(min=0, max=999_999_999.99))
+    debt_strategy = fields.String(validate=validate.OneOf(STRATEGIES))
 
 
 class PasswordSchema(Schema):
@@ -30,6 +32,8 @@ def update_profile():
         g.user.settings.theme = data["theme"]
     if "safety_minimum" in data:
         g.user.settings.safety_minimum = data["safety_minimum"]
+    if "debt_strategy" in data:
+        g.user.settings.debt_strategy = data["debt_strategy"]
     db.session.commit()
     return jsonify(user_payload(g.user))
 

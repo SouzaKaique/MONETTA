@@ -76,9 +76,9 @@ export class IncomePage {
       { label: 'Renda recebida', value: s.income_received },
       { label: 'Despesas fixas', value: s.expenses_fixed },
       { label: 'Despesas variáveis', value: s.expenses_variable },
-      { label: 'Dinheiro livre', value: s.free_money, hint: 'Renda prevista menos despesas' },
+      { label: 'Dinheiro livre', value: s.free_money, hint: 'Renda prevista menos despesas e dívidas' },
       { label: 'Cartões', value: s.card_commitment, hint: 'Parcelas que vencem no mês' },
-      { label: 'Dívidas', value: s.debt_payments, hint: 'Disponível na Etapa 4' },
+      { label: 'Dívidas', value: s.debt_payments, hint: `Faltam ${formatMoney(s.debt_due)} do combinado` },
       { label: 'Reservas', value: s.reserves, hint: 'Disponível na Etapa 6' },
     ];
   });

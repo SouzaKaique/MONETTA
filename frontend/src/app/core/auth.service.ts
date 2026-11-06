@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, catchError, firstValueFrom, map, of, tap } from 'rxjs';
-import { Providers, ThemePreference, User } from './models';
+import { DebtStrategy, Providers, ThemePreference, User } from './models';
 import { ThemeService } from './theme.service';
 
 @Injectable({ providedIn: 'root' })
@@ -64,6 +64,7 @@ export class AuthService {
     account_name?: string;
     theme?: ThemePreference;
     safety_minimum?: string;
+    debt_strategy?: DebtStrategy;
   }): Observable<User> {
     return this.http.patch<User>('/api/profile', body).pipe(tap((u) => this.accept(u)));
   }

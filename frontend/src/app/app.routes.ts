@@ -52,7 +52,10 @@ export const routes: Routes = [
         path: 'cartoes/:id',
         loadComponent: () => import('./pages/cards/card-detail').then((m) => m.CardDetailPage),
       },
-      { path: 'dividas', ...upcoming('Dívidas', 4, 'Histórico de pagamentos, estratégias de quitação e simulador.') },
+      {
+        path: 'dividas',
+        loadComponent: () => import('./pages/debts/debts').then((m) => m.DebtsPage),
+      },
       { path: 'planejamento', ...upcoming('Planejamento', 5, 'Orçamento mensal, simulador até o próximo salário e Modo Recuperação.') },
       { path: 'calendario', ...upcoming('Calendário', 5, 'Tudo o que entra e sai, dia a dia.') },
       { path: 'wishlist', ...upcoming('Wishlist', 6, 'Metas de compra e a análise "Posso comprar?".') },

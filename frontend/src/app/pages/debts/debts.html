@@ -1,0 +1,177 @@
+<header class="page-head">
+  <div>
+    <h1 class="page-title">Dívidas</h1>
+    <p class="muted mb-0">Quanto falta e o melhor caminho para quitar.</p>
+  </div>
+  <button type="button" class="btn btn-brand" (click)="creating.set(true)">
+    <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Dívida
+  </button>
+</header>
+
+@if (error()) {
+  <div class="notice notice-critical mt-3" role="alert">
+    <i class="bi bi-exclamation-circle" aria-hidden="true"></i><span>{{ error() }}</span>
+  </div>
+}
+
+@if (data(); as d) {
+  @if (!d.items.length) {
+    <div class="card-m mt-3">
+      <p class="muted mb-0">Cadastre o que você deve, mesmo sem juros ou vencimento definido.</p>
+    </div>
+  } @else {
+    <section class="card-m mt-3 progress-card">
+      <div class="limit-head">
+        <span class="muted">Já quitado</span>
+        <strong class="money">{{ d.summary.paid_pct }}%</strong>
+      </div>
+      <div class="bar bar-lg" role="meter" aria-label="Percentual quitado"
+           [attr.aria-valuenow]="d.summary.paid_pct" aria-valuemin="0" aria-valuemax="100">
+        <span [style.width.%]="d.summary.paid_pct"></span>
+      </div>
+      <dl class="figures">
+        <div><dt>Falta pagar</dt><dd class="money">{{ money(d.summary.balance) }}</dd></div>
+        <div><dt>Total pago</dt><dd class="money">{{ money(d.summary.paid) }}</dd></div>
+        <div><dt>Valor original</dt><dd class="money">{{ money(d.summary.original) }}</dd></div>
+        <div><dt>Combinado por mês</dt><dd class="money">{{ money(d.summary.monthly_commitment) }}</dd></div>
+      </dl>
+    </section>
+
+    <section class="card-m mt-3">
+      <h2 class="card-title-m mb-2">Ordem de quitação</h2>
+      <div class="strategies" role="group" aria-label="Estratégia de quitação">
+        @for (s of strategies; track s.value) {
+          <button type="button" [class.active]="strategy() === s.value"
+                  [attr.aria-pressed]="strategy() === s.value" (click)="choose(s.value)">{{ s.label }}</button>
+        }
+      </div>
+      <p class="subtle mt-2">{{ hint() }}</p>
+
+      <ol class="debts">
+        @for (debt of active(); track debt.id; let i = $index) {
+          <li class="debt" [class.next]="i === 0">
+            <div class="debt-head">
+              <span class="position" aria-hidden="true">{{ i + 1 }}</span>
+              <button type="button" class="debt-title" [attr.aria-expanded]="open() === debt.id" (click)="toggle(debt)">
+                <strong>{{ debt.name }}</strong>
+                <span class="row-meta">
+                  {{ debt.creditor }}
+                  @if (debt.due_date) { · vence em {{ date(debt.due_date) }} }
+                  @if (debt.interest_rate) { · {{ debt.interest_rate.replace('.', ',') }}% ao mês }
+                </span>
+              </button>
+              <span class="row-amount money">{{ money(debt.balance) }}</span>
+            </div>
+            <div class="bar" role="meter" aria-label="Percentual quitado"
+                 [attr.aria-valuenow]="debt.paid_pct" aria-valuemin="0" aria-valuemax="100">
+              <span [style.width.%]="debt.paid_pct"></span>
+            </div>
+            <div class="debt-foot">
+              <span class="tags">
+                @if (i === 0) { <span class="tag tag-ok">Próxima</span> }
+                <span class="tag" [class.tag-pending]="debt.status === 'pending'">{{ statusLabel[debt.status] }}</span>
+                <span class="tag">{{ debt.paid_pct }}% pago</span>
+              </span>
+              <div class="row-actions">
+                @if (strategy() === 'custom') {
+                  <button type="button" class="icon-btn" title="Subir" aria-label="Subir na ordem"
+                          [disabled]="i === 0" (click)="move(i, -1)">
+                    <i class="bi bi-arrow-up" aria-hidden="true"></i>
+                  </button>
+                  <button type="button" class="icon-btn" title="Descer" aria-label="Descer na ordem"
+                          [disabled]="i === active().length - 1" (click)="move(i, 1)">
+                    <i class="bi bi-arrow-down" aria-hidden="true"></i>
+                  </button>
+                }
+                <button type="button" class="btn btn-quiet btn-sm" (click)="paying.set(debt)">Pagar</button>
+                <button type="button" class="icon-btn" title="Editar" aria-label="Editar" (click)="editing.set(debt)">
+                  <i class="bi bi-pencil" aria-hidden="true"></i>
+                </button>
+                @if (deleting() === debt.id) {
+                  <button type="button" class="btn btn-sm btn-danger-quiet" (click)="remove(debt)">Excluir?</button>
+                } @else {
+                  <button type="button" class="icon-btn" title="Excluir" aria-label="Excluir" (click)="deleting.set(debt.id)">
+                    <i class="bi bi-trash3" aria-hidden="true"></i>
+                  </button>
+                }
+              </div>
+            </div>
+            @if (open() === debt.id) {
+              <ng-container *ngTemplateOutlet="details; context: { $implicit: debt }" />
+            }
+          </li>
+        }
+      </ol>
+
+      @if (finished().length) {
+        <h3 class="sub-title mt-3">Quitadas</h3>
+        <ul class="rows">
+          @for (debt of finished(); track debt.id) {
+            <li class="debt">
+              <div class="debt-head">
+                <button type="button" class="debt-title" [attr.aria-expanded]="open() === debt.id" (click)="toggle(debt)">
+                  <strong>{{ debt.name }}</strong>
+                  <span class="row-meta">{{ debt.creditor }}</span>
+                </button>
+                <span class="row-amount money">{{ money(debt.original_amount) }}</span>
+                <span class="tag tag-ok">Quitada</span>
+              </div>
+              @if (open() === debt.id) {
+                <ng-container *ngTemplateOutlet="details; context: { $implicit: debt }" />
+              }
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    @if (active().length) {
+      <section class="card-m mt-3"><app-debt-simulator [strategy]="strategy()" /></section>
+    }
+  }
+}
+
+<ng-template #details let-debt>
+  <div class="details fade-up">
+    <dl class="figures">
+      <div><dt>Valor original</dt><dd class="money">{{ money(debt.original_amount) }}</dd></div>
+      <div><dt>Total pago</dt><dd class="money">{{ money(debt.total_paid) }}</dd></div>
+      <div><dt>Saldo restante</dt><dd class="money">{{ money(debt.balance) }}</dd></div>
+      <div><dt>Data da dívida</dt><dd>{{ date(debt.start_date) }}</dd></div>
+      <div><dt>Importância</dt><dd>{{ priorityLabel[debt.priority] }}</dd></div>
+      @if (debt.agreed_amount) {
+        <div><dt>Combinado</dt><dd class="money">{{ money(debt.agreed_amount) }} {{ frequencyLabel[debt.frequency] }}</dd></div>
+      }
+    </dl>
+    @if (debt.notes) { <p class="subtle mt-2 mb-0">{{ debt.notes }}</p> }
+    <h3 class="sub-title mt-3">Pagamentos</h3>
+    @if (!debt.payments.length) { <p class="subtle mb-0">Nenhum pagamento registrado.</p> }
+    <ul class="rows">
+      @for (p of debt.payments; track p.id) {
+        <li class="row-item">
+          <div class="row-main">
+            <strong>{{ date(p.paid_on) }}</strong>
+            <span class="row-meta">
+              {{ p.account_name ?? 'Fora das contas cadastradas' }}
+              @if (p.description) { · {{ p.description }} }
+            </span>
+          </div>
+          <span class="row-amount money">{{ money(p.amount) }}</span>
+          <div class="row-actions">
+            @if (deleting() === p.id) {
+              <button type="button" class="btn btn-sm btn-danger-quiet" (click)="removePayment(p.id)">Remover?</button>
+            } @else {
+              <button type="button" class="icon-btn" title="Remover pagamento" aria-label="Remover pagamento" (click)="deleting.set(p.id)">
+                <i class="bi bi-trash3" aria-hidden="true"></i>
+              </button>
+            }
+          </div>
+        </li>
+      }
+    </ul>
+  </div>
+</ng-template>
+
+@if (creating()) { <app-debt-form (closed)="creating.set(false)" /> }
+@if (editing(); as debt) { <app-debt-form [debt]="debt" (closed)="editing.set(null)" /> }
+@if (paying(); as debt) { <app-debt-payment-form [debt]="debt" (closed)="paying.set(null)" /> }

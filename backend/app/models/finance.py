@@ -19,6 +19,7 @@ class AppSettings(TimestampMixin, db.Model):
     theme: Mapped[str] = mapped_column(sa.String(10), default="system")  # system | light | dark
     timezone: Mapped[str] = mapped_column(sa.String(50), default="America/Sao_Paulo")
     safety_minimum: Mapped[Money] = mapped_column(default=Decimal("0.00"))
+    debt_strategy: Mapped[str] = mapped_column(sa.String(12), default="snowball", server_default="snowball")
 
     user: Mapped["User"] = relationship(back_populates="settings")  # noqa: F821
 

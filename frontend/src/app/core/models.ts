@@ -9,6 +9,7 @@ export interface User {
   providers: string[];
   theme: ThemePreference;
   safety_minimum: string;
+  debt_strategy: DebtStrategy;
   created_at: string;
 }
 
@@ -21,6 +22,7 @@ export interface Providers {
 export type Money = string | null;
 
 export type Kind = 'income' | 'expense';
+export type DebtStrategy = 'snowball' | 'avalanche' | 'due_date' | 'priority' | 'custom';
 export type Frequency = 'weekly' | 'biweekly' | 'monthly' | 'yearly';
 
 export interface DashboardSummary {
@@ -44,9 +46,10 @@ export interface DashboardSummary {
   card_commitment: string;
   open_invoices: string;
   overdue_invoices: string;
-  debt_payments: Money;
+  debt_payments: string;
+  debt_due: string;
+  pending_debts: string;
   reserves: Money;
-  pending_debts: Money;
   saved_total: Money;
 }
 
@@ -65,7 +68,7 @@ export interface Dashboard {
   summary: DashboardSummary;
   history: HistoryPoint[];
   by_category: { category: string; total: string }[];
-  alerts: { level: 'warning' | 'critical'; message: string }[];
+  alerts: { level: 'info' | 'warning' | 'critical'; message: string }[];
 }
 
 export interface Account {
@@ -203,6 +206,68 @@ export interface Purchase {
   category_name: string | null;
   first_due_date: string | null;
   last_due_date: string | null;
+}
+
+export interface DebtPayment {
+  id: string;
+  amount: string;
+  paid_on: string;
+  description: string | null;
+  notes: string | null;
+  account_name: string | null;
+}
+
+export interface Debt {
+  id: string;
+  name: string;
+  creditor: string;
+  original_amount: string;
+  opening_balance: string;
+  balance: string;
+  total_paid: string;
+  paid_pct: number;
+  status: 'pending' | 'in_payment' | 'paid';
+  start_date: string;
+  due_date: string | null;
+  agreed_amount: Money;
+  frequency: 'none' | 'weekly' | 'biweekly' | 'monthly';
+  interest_rate: Money;
+  priority: number;
+  notes: string | null;
+  payments: DebtPayment[];
+}
+
+export interface DebtList {
+  strategy: DebtStrategy;
+  items: Debt[];
+  summary: {
+    original: string;
+    paid: string;
+    balance: string;
+    paid_pct: number;
+    monthly_commitment: string;
+    next_debt: string | null;
+  };
+}
+
+export interface DebtScenario {
+  monthly: string;
+  above_capacity: boolean;
+  feasible: boolean;
+  months: number | null;
+  finish_month: string | null;
+  total_interest: Money;
+  total_paid: Money;
+  timeline: { month: string; balance: string }[];
+  payoff: { name: string; month: string; months: number }[];
+  months_saved: number | null;
+  interest_saved: Money;
+}
+
+export interface DebtSimulation {
+  strategy: DebtStrategy;
+  capacity: Money;
+  scenarios: DebtScenario[];
 }
 
 export interface Transfer {

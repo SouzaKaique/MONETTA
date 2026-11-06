@@ -68,11 +68,12 @@ serviço de envio de e-mail.
 
 **Etapa 3:** `credit_cards`, `invoices`, `card_purchases`, `installments`, `invoice_payments`.
 
+**Etapa 4:** `debts`, `debt_payments`.
+
 **Nas próximas etapas, por migração:**
 
 | Etapa | Tabelas |
 |---|---|
-| 4 | `debts`, `debt_payments` |
 | 5 | `budgets`, `notifications`, `financial_events` |
 | 6 | `wishlist_items`, `savings_goals`, `goal_contributions` |
 
@@ -115,6 +116,22 @@ serviço de envio de e-mail.
 - **Pagamento parcial:** o restante fica na própria fatura. Juros do rotativo não são calculados.
 - **Idempotência:** compras, pagamentos e lançamentos aceitam `Idempotency-Key`. Em envios
   simultâneos, a constraint barra o segundo e a resposta é o registro já criado.
+
+## Dívidas
+
+- **Pagamento:** reduz o saldo devedor e, se houver conta, o dinheiro em conta. Não é despesa.
+  Pagamentos antigos podem ficar sem conta: atualizam a dívida sem mexer no saldo de hoje.
+- **Valor combinado:** o que falta pagar no mês reduz o disponível para gastar. Conta como
+  1 pagamento mensal, 2 quinzenais ou 4 semanais, limitado ao saldo da dívida.
+- **Renda comprometida e dinheiro livre:** incluem pagamentos de dívidas, além das despesas.
+- **Situação:** calculada pelo saldo: pendente, em pagamento ou quitada.
+- **Juros:** o saldo real só muda com pagamentos. Juros aparecem como estimativa no simulador.
+- **Estratégias:** bola de neve (menor saldo), avalanche (maior juro; sem juros, por último),
+  vencimento, importância e ordem manual.
+- **Simulador:** primeiro pagamento no mês seguinte. A cada mês aplica os juros e paga na ordem
+  escolhida; o que sobra ao quitar uma dívida passa para a próxima. O extra entra no 1º mês.
+- **Limite recomendado:** renda prevista − despesas do mês − mínimo de segurança. Acima disso,
+  o cenário aparece como não recomendado, mas continua disponível.
 
 ## Identidade visual
 

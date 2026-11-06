@@ -6,7 +6,7 @@ from uuid import UUID
 import sqlalchemy as sa
 
 from ..extensions import db
-from ..models import Account, InvoicePayment, Transaction, Transfer
+from ..models import Account, DebtPayment, InvoicePayment, Transaction, Transfer
 
 ZERO = Decimal("0.00")
 
@@ -35,6 +35,11 @@ def account_balance(account: Account, day: date) -> Decimal:
         InvoicePayment.account_id == account.id,
         InvoicePayment.paid_on.between(account.opening_date, day),
     )
+    # Mesmo princípio para dívidas: sai da conta, sem ser despesa.
+    debt_payments = sa.select(sa.func.sum(DebtPayment.amount)).where(
+        DebtPayment.account_id == account.id,
+        DebtPayment.paid_on.between(account.opening_date, day),
+    )
     return (
         account.opening_balance
         + _sum(moved.where(Transaction.kind == "income"))
@@ -42,6 +47,7 @@ def account_balance(account: Account, day: date) -> Decimal:
         + _sum(transfer.where(Transfer.to_account_id == account.id))
         - _sum(transfer.where(Transfer.from_account_id == account.id))
         - _sum(invoice_payments)
+        - _sum(debt_payments)
     )
 
 

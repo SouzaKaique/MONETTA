@@ -46,6 +46,7 @@ def user_payload(user: User) -> dict:
         "providers": sorted(i.provider for i in user.identities),
         "theme": user.settings.theme,
         "safety_minimum": user.settings.safety_minimum,
+        "debt_strategy": user.settings.debt_strategy,
         "created_at": user.created_at.isoformat(),
     }
 

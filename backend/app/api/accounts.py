@@ -5,7 +5,8 @@ from marshmallow import Schema, ValidationError, fields, validate
 
 from ..extensions import db
 from ..models import (
-    Account, CardPurchase, Category, InvoicePayment, Recurrence, Transaction, Transfer,
+    Account, CardPurchase, Category, DebtPayment, InvoicePayment, Recurrence, Transaction,
+    Transfer,
 )
 from .common import error, load_body, login_required
 from .finance_common import (
@@ -94,6 +95,7 @@ def delete_account(account_id):
         | sa.exists().where(sa.or_(Transfer.from_account_id == account.id,
                                    Transfer.to_account_id == account.id))
         | sa.exists().where(InvoicePayment.account_id == account.id)
+        | sa.exists().where(DebtPayment.account_id == account.id)
     ))
     if used:
         return error("Esta conta tem movimentações. Desative-a para preservar o histórico.", 409)

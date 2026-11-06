@@ -2,8 +2,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { Observable, tap } from 'rxjs';
 import {
-  Account, CardDetail, Category, CreditCard, Dashboard, Installment, Invoice, InvoiceDetail, Kind,
-  Purchase, Recurrence, Transaction, TransactionPage, Transfer,
+  Account, CardDetail, Category, CreditCard, Dashboard, Debt, DebtList, DebtSimulation, DebtStrategy,
+  Installment, Invoice, InvoiceDetail, Kind, Purchase, Recurrence, Transaction, TransactionPage, Transfer,
 } from './models';
 
 export interface TransactionFilters {
@@ -167,6 +167,39 @@ export class FinanceService {
 
   deletePurchase(id: string): Observable<unknown> {
     return this.changed(this.http.delete(`/api/purchases/${id}`));
+  }
+
+  debts(strategy?: DebtStrategy): Observable<DebtList> {
+    return this.http.get<DebtList>('/api/debts', { params: strategy ? { strategy } : {} });
+  }
+
+  saveDebt(body: object, id?: string): Observable<Debt> {
+    return this.changed(
+      id ? this.http.patch<Debt>(`/api/debts/${id}`, body)
+         : this.http.post<Debt>('/api/debts', body),
+    );
+  }
+
+  deleteDebt(id: string): Observable<unknown> {
+    return this.changed(this.http.delete(`/api/debts/${id}`));
+  }
+
+  reorderDebts(ids: string[]): Observable<unknown> {
+    return this.changed(this.http.post('/api/debts/order', { ids }));
+  }
+
+  payDebt(id: string, body: object, idempotencyKey: string): Observable<Debt> {
+    return this.changed(this.http.post<Debt>(`/api/debts/${id}/payments`, body, {
+      headers: { 'Idempotency-Key': idempotencyKey },
+    }));
+  }
+
+  deleteDebtPayment(id: string): Observable<unknown> {
+    return this.changed(this.http.delete(`/api/debt-payments/${id}`));
+  }
+
+  simulateDebts(body: object): Observable<DebtSimulation> {
+    return this.http.post<DebtSimulation>('/api/debts/simulate', body);
   }
 
   installments(month: string): Observable<{ items: Installment[]; total: string }> {
