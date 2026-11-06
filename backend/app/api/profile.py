@@ -12,6 +12,7 @@ bp = Blueprint("profile", __name__, url_prefix="/api/profile")
 class ProfileSchema(Schema):
     account_name = fields.String(validate=validate.Length(min=2, max=80))
     theme = fields.String(validate=validate.OneOf(["system", "light", "dark"]))
+    safety_minimum = fields.Decimal(places=2, validate=validate.Range(min=0, max=999_999_999.99))
 
 
 class PasswordSchema(Schema):
@@ -27,6 +28,8 @@ def update_profile():
         g.user.account_name = data["account_name"].strip()
     if "theme" in data:
         g.user.settings.theme = data["theme"]
+    if "safety_minimum" in data:
+        g.user.settings.safety_minimum = data["safety_minimum"]
     db.session.commit()
     return jsonify(user_payload(g.user))
 

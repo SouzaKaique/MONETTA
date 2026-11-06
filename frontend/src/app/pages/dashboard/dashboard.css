@@ -6,11 +6,6 @@
   justify-content: space-between;
 }
 
-.month-picker { align-items: center; display: flex; gap: 0.4rem; }
-.month-picker .btn { padding: 0.3rem 0.6rem; }
-.month-label { font-weight: 500; min-width: 10.5rem; text-align: center; }
-.month-label::first-letter { text-transform: uppercase; }
-
 .link-btn {
   background: none;
   border: 0;
@@ -102,5 +97,5 @@
   }
   .charts { grid-template-columns: minmax(0, 1fr); }
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .month-picker { justify-content: space-between; width: 100%; }
+  app-month-picker { width: 100%; }
 }

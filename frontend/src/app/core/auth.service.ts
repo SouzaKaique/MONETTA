@@ -60,7 +60,11 @@ export class AuthService {
     this.user.set(null);
   }
 
-  updateProfile(body: { account_name?: string; theme?: ThemePreference }): Observable<User> {
+  updateProfile(body: {
+    account_name?: string;
+    theme?: ThemePreference;
+    safety_minimum?: string;
+  }): Observable<User> {
     return this.http.patch<User>('/api/profile', body).pipe(tap((u) => this.accept(u)));
   }
 

@@ -33,6 +33,15 @@
   </main>
 </div>
 
+<button type="button" class="quick-add" (click)="quickExpense.set(true)">
+  <i class="bi bi-plus-lg" aria-hidden="true"></i>
+  <span>Nova despesa</span>
+</button>
+
+@if (quickExpense()) {
+  <app-transaction-form kind="expense" (closed)="quickExpense.set(false)" />
+}
+
 <nav class="bottom-nav" aria-label="Navegação principal">
   @for (item of mobile; track item.path) {
     <a [routerLink]="item.path" routerLinkActive="active" (click)="moreOpen.set(false)"

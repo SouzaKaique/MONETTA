@@ -1,37 +1,24 @@
 """
-Indicadores do dashboard. Todo cálculo financeiro fica aqui, nunca no frontend.
+Indicadores do mês. Todo cálculo financeiro fica aqui, nunca no frontend.
 
 Fluxo de caixa usa `paid_on` e só considera status 'confirmed'.
 Competência usa `competence_date` e considera confirmados e pendentes.
 Indicadores de módulos ainda não construídos voltam como None: zero seria
 uma afirmação falsa sobre a situação financeira do usuário.
 """
-from calendar import monthrange
-from datetime import date, datetime
+from datetime import date, timedelta
 from decimal import Decimal
 from uuid import UUID
-from zoneinfo import ZoneInfo
 
 import sqlalchemy as sa
 
 from ..extensions import db
-from ..models import Account, AppSettings, Category, Transaction
+from ..models import Account, AppSettings, Category, Recurrence, Transaction
+from .balances import ZERO, total_balance
+from .periods import month_bounds, shift_month, today_for
+from .recurrences import generate, generation_horizon
 
-ZERO = Decimal("0.00")
 HISTORY_MONTHS = 6
-
-
-def today_for(settings: AppSettings) -> date:
-    return datetime.now(ZoneInfo(settings.timezone)).date()
-
-
-def month_bounds(year: int, month: int) -> tuple[date, date]:
-    return date(year, month, 1), date(year, month, monthrange(year, month)[1])
-
-
-def shift_month(year: int, month: int, delta: int) -> tuple[int, int]:
-    index = year * 12 + (month - 1) + delta
-    return index // 12, index % 12 + 1
 
 
 def _total(query) -> Decimal:
@@ -42,26 +29,19 @@ def _sum_amount():
     return sa.select(sa.func.coalesce(sa.func.sum(Transaction.amount), 0))
 
 
-def balance_on(user_id: UUID, day: date) -> Decimal:
-    """Saldo calculado: abertura das contas + entradas e saídas confirmadas até o dia."""
-    opening = _total(sa.select(sa.func.coalesce(sa.func.sum(Account.opening_balance), 0)).where(
-        Account.user_id == user_id, Account.active, Account.opening_date <= day
-    ))
-    moved = _sum_amount().where(
-        Transaction.user_id == user_id,
-        Transaction.status == "confirmed",
-        Transaction.paid_on <= day,
-    )
-    income = _total(moved.where(Transaction.kind == "income"))
-    expense = _total(moved.where(Transaction.kind == "expense"))
-    return opening + income - expense
-
-
 def _month_total(user_id: UUID, start: date, end: date, *filters) -> Decimal:
     return _total(_sum_amount().where(
         Transaction.user_id == user_id,
         Transaction.competence_date.between(start, end),
         *filters,
+    ))
+
+
+def pending_expenses_until(user_id: UUID, day: date) -> Decimal:
+    """Tudo o que está em aberto até o dia, inclusive contas atrasadas de meses anteriores."""
+    return _total(_sum_amount().where(
+        Transaction.user_id == user_id, Transaction.kind == "expense",
+        Transaction.status == "pending", Transaction.competence_date <= day,
     ))
 
 
@@ -99,12 +79,15 @@ def _alerts(summary: dict, is_current: bool) -> list[dict]:
         alerts.append({"level": "warning", "message": f"Você já comprometeu {pct}% da sua renda."})
     if is_current and summary["projected_balance"] < 0:
         alerts.append({"level": "critical", "message": "Seu saldo projetado está negativo."})
+    if is_current and summary["overdue_expenses"] > 0:
+        alerts.append({"level": "warning", "message": "Você tem despesas atrasadas."})
     return alerts
 
 
 def build_dashboard(user_id: UUID, settings: AppSettings, year: int, month: int) -> dict:
     today = today_for(settings)
     start, end = month_bounds(year, month)
+    generate(user_id, generation_horizon(today, end))
     is_current = start <= today <= end
     is_past = end < today
 
@@ -116,42 +99,60 @@ def build_dashboard(user_id: UUID, settings: AppSettings, year: int, month: int)
     salary_received = _month_total(user_id, start, end, is_income, confirmed, Transaction.is_salary)
     salary_expected = _month_total(user_id, start, end, is_income, pending, Transaction.is_salary)
     extra_income = _month_total(user_id, start, end, is_income, confirmed, ~Transaction.is_salary)
+    extra_expected = _month_total(user_id, start, end, is_income, pending, ~Transaction.is_salary)
     expenses_paid = _month_total(user_id, start, end, is_expense, confirmed)
     expenses_pending = _month_total(user_id, start, end, is_expense, pending)
+    expenses_fixed = _month_total(user_id, start, end, is_expense, Transaction.is_fixed)
     expenses_total = expenses_paid + expenses_pending
 
-    # Renda de referência: previsto entra aqui só para medir comprometimento, nunca no saldo.
-    income_base = salary_received + salary_expected + extra_income
-    commitment = round(expenses_total / income_base * 100) if income_base > 0 else None
+    income_received = salary_received + extra_income
+    # Previsto entra aqui só para medir comprometimento, nunca no saldo.
+    income_expected = income_received + salary_expected + extra_expected
+    commitment = round(expenses_total / income_expected * 100) if income_expected > 0 else None
 
-    balance = balance_on(user_id, end if is_past else today) if start <= today else None
+    balance = total_balance(user_id, end if is_past else today) if start <= today else None
 
     summary: dict = {
         "balance": balance,
+        "income_expected": income_expected,
+        "income_received": income_received,
         "salary_received": salary_received,
         "salary_expected": salary_expected,
         "extra_income": extra_income,
         "expenses_total": expenses_total,
         "expenses_paid": expenses_paid,
         "expenses_pending": expenses_pending,
+        "expenses_fixed": expenses_fixed,
+        "expenses_variable": expenses_total - expenses_fixed,
         "income_commitment_pct": commitment,
+        # Dinheiro livre do mês por competência: não é saldo em conta.
+        "free_money": income_expected - expenses_total,
         "safety_minimum": settings.safety_minimum,
+        "overdue_expenses": ZERO,
         # Só faz sentido no mês corrente e nunca conta receita futura.
         "available_to_spend": None,
         "projected_balance": None,
         # Dependem de módulos das próximas etapas.
+        "card_commitment": None,
+        "debt_payments": None,
+        "reserves": None,
         "open_invoices": None,
         "pending_debts": None,
         "saved_total": None,
     }
     if is_current:
-        summary["projected_balance"] = balance - expenses_pending
+        open_until_month_end = pending_expenses_until(user_id, end)
+        summary["overdue_expenses"] = pending_expenses_until(user_id, start - timedelta(days=1))
+        summary["projected_balance"] = balance - open_until_month_end
         summary["available_to_spend"] = max(
-            ZERO, balance - expenses_pending - settings.safety_minimum
+            ZERO, balance - open_until_month_end - settings.safety_minimum
         )
 
     has_accounts = db.session.scalar(
         sa.select(sa.exists().where(Account.user_id == user_id, Account.active))
+    )
+    has_salary = db.session.scalar(
+        sa.select(sa.exists().where(Recurrence.user_id == user_id, Recurrence.is_salary))
     )
     has_transactions = db.session.scalar(
         sa.select(sa.exists().where(Transaction.user_id == user_id))
@@ -159,6 +160,8 @@ def build_dashboard(user_id: UUID, settings: AppSettings, year: int, month: int)
     return {
         "month": f"{year:04d}-{month:02d}",
         "is_current_month": is_current,
+        "has_accounts": bool(has_accounts),
+        "has_salary": bool(has_salary),
         "has_data": bool(has_accounts or has_transactions),
         "summary": summary,
         "history": _history(user_id, year, month),

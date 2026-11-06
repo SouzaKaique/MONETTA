@@ -1,9 +1,11 @@
-import { HttpClient } from '@angular/common/http';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
-import { formatMoney, formatMonth, shiftMonth } from '../../core/format';
+import { FinanceService } from '../../core/finance.service';
+import { formatMoney, todayIso } from '../../core/format';
 import { Dashboard, Money } from '../../core/models';
+import { MonthPicker } from '../../shared/month-picker';
 import { HistoryChart } from './history-chart';
 
 interface Kpi {
@@ -14,23 +16,20 @@ interface Kpi {
 
 @Component({
   selector: 'app-dashboard',
-  imports: [HistoryChart],
+  imports: [HistoryChart, MonthPicker, RouterLink],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
 })
-export class DashboardPage implements OnInit {
-  private readonly http = inject(HttpClient);
+export class DashboardPage {
+  private readonly finance = inject(FinanceService);
   protected readonly auth = inject(AuthService);
   private request?: Subscription;
 
+  protected readonly month = signal(todayIso().slice(0, 7));
   protected readonly data = signal<Dashboard | null>(null);
   protected readonly failed = signal(false);
   protected readonly loading = signal(true);
   protected readonly money = formatMoney;
-  protected readonly monthLabel = computed(() => {
-    const d = this.data();
-    return d ? formatMonth(d.month) : '';
-  });
 
   protected readonly firstName = computed(
     () => this.auth.user()?.account_name.split(' ')[0] ?? '',
@@ -59,31 +58,29 @@ export class DashboardPage implements OnInit {
     Math.max(0, ...(this.data()?.by_category ?? []).map((c) => Number(c.total))),
   );
 
-  ngOnInit(): void {
-    this.load();
+  constructor() {
+    // Recarrega ao trocar o mês ou após qualquer lançamento, inclusive pelo registro rápido.
+    effect(() => {
+      this.finance.revision();
+      const month = this.month();
+      untracked(() => this.load(month));
+    });
   }
 
-  protected load(month?: string): void {
+  protected load(month: string): void {
     this.loading.set(true);
     this.failed.set(false);
     this.request?.unsubscribe();
-    this.request = this.http
-      .get<Dashboard>('/api/dashboard', { params: month ? { month } : {} })
-      .subscribe({
-        next: (d) => {
-          this.data.set(d);
-          this.loading.set(false);
-        },
-        error: () => {
-          this.failed.set(true);
-          this.loading.set(false);
-        },
-      });
-  }
-
-  protected go(delta: number): void {
-    const current = this.data()?.month;
-    if (current) this.load(shiftMonth(current, delta));
+    this.request = this.finance.dashboard(month).subscribe({
+      next: (d) => {
+        this.data.set(d);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.failed.set(true);
+        this.loading.set(false);
+      },
+    });
   }
 
   protected barWidth(total: string): number {

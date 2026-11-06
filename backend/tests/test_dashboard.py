@@ -25,8 +25,9 @@ def user(client, monkeypatch):
 
 
 def tx(user, kind, amount, competence=TODAY, status="confirmed", paid_on=TODAY, **extra):
+    account = db.session.scalar(db.select(Account).filter_by(user_id=user.id))
     db.session.add(Transaction(
-        user_id=user.id, kind=kind, amount=Decimal(amount), status=status,
+        user_id=user.id, account_id=account.id, kind=kind, amount=Decimal(amount), status=status,
         competence_date=competence, paid_on=paid_on if status == "confirmed" else None,
         description="t", **extra,
     ))
@@ -130,6 +131,27 @@ def test_dados_isolados_por_usuario(client, make_client, user):
     data = get(other)
     assert data["summary"]["expenses_total"] == "0.00"
     assert data["has_data"] is False
+
+
+def test_conta_atrasada_de_mes_anterior_reduz_o_disponivel(client, user):
+    tx(user, "expense", "300.00", competence=date(2026, 2, 10), status="pending")
+    tx(user, "expense", "100.00", status="pending")
+    data = get(client)
+    s = data["summary"]
+    assert s["expenses_pending"] == "100.00"
+    assert s["overdue_expenses"] == "300.00"
+    assert s["available_to_spend"] == "600.00"
+    assert any("atrasadas" in a["message"] for a in data["alerts"])
+
+
+def test_fixas_variaveis_e_dinheiro_livre(client, user):
+    tx(user, "income", "2000.00", is_salary=True)
+    tx(user, "expense", "500.00", is_fixed=True)
+    tx(user, "expense", "200.00")
+    s = get(client)["summary"]
+    assert s["expenses_fixed"] == "500.00" and s["expenses_variable"] == "200.00"
+    assert s["free_money"] == "1300.00"
+    assert s["income_received"] == "2000.00" and s["income_expected"] == "2000.00"
 
 
 def test_mes_invalido(client, user):

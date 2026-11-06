@@ -1,0 +1,219 @@
+<h1 class="page-title">Configurações</h1>
+
+@if (error()) {
+  <div class="notice notice-critical mt-3" role="alert">
+    <i class="bi bi-exclamation-circle" aria-hidden="true"></i><span>{{ error() }}</span>
+  </div>
+}
+
+<div class="stack">
+  <section class="card-m">
+    <div class="section-head">
+      <h2 class="card-title-m">Contas</h2>
+      <div class="d-flex gap-2">
+        @if (activeAccounts().length > 1) {
+          <button type="button" class="btn btn-quiet btn-sm" (click)="openTransfer()">Transferir</button>
+        }
+        <button type="button" class="btn btn-quiet btn-sm" (click)="openAccount(null)">
+          <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Adicionar
+        </button>
+      </div>
+    </div>
+    @if (!accounts().length) {
+      <p class="subtle mb-0">Cadastre a conta onde seu dinheiro está. O saldo de abertura é o valor que ela tem hoje.</p>
+    }
+    <ul class="rows">
+      @for (a of accounts(); track a.id) {
+        <li class="row-item" [class.paused]="!a.active">
+          <div class="row-main">
+            <strong>{{ a.name }}</strong>
+            <span class="row-meta">{{ typeLabel[a.type] }}</span>
+            @if (a.real_balance !== null) {
+              <span class="row-meta">
+                Saldo no banco {{ money(a.real_balance) }}
+                @if (a.difference !== '0.00') { · diferença de {{ money(a.difference) }} }
+                @else { · confere }
+              </span>
+            }
+            <span class="tags">
+              @if (!a.active) { <span class="tag tag-pending">Inativa</span> }
+            </span>
+          </div>
+          <span class="row-amount money">{{ money(a.balance) }}</span>
+          <div class="row-actions">
+            <button type="button" class="icon-btn" title="Editar" aria-label="Editar" (click)="openAccount(a)">
+              <i class="bi bi-pencil" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="icon-btn" [title]="a.active ? 'Desativar' : 'Reativar'"
+                    [attr.aria-label]="a.active ? 'Desativar' : 'Reativar'" (click)="toggleAccount(a)">
+              <i class="bi" [class.bi-archive]="a.active" [class.bi-arrow-up-circle]="!a.active" aria-hidden="true"></i>
+            </button>
+            @if (deleting() === a.id) {
+              <button type="button" class="btn btn-sm btn-danger-quiet" (click)="deleteAccount(a)">Excluir?</button>
+            } @else {
+              <button type="button" class="icon-btn" title="Excluir" aria-label="Excluir" (click)="deleting.set(a.id)">
+                <i class="bi bi-trash3" aria-hidden="true"></i>
+              </button>
+            }
+          </div>
+        </li>
+      }
+    </ul>
+  </section>
+
+  @if (transfers().length) {
+    <section class="card-m">
+      <h2 class="card-title-m mb-2">Transferências</h2>
+      <ul class="rows">
+        @for (t of transfers(); track t.id) {
+          <li class="row-item">
+            <div class="row-main">
+              <strong>{{ t.from_account }} → {{ t.to_account }}</strong>
+              <span class="row-meta">{{ date(t.date) }}</span>
+            </div>
+            <span class="row-amount money">{{ money(t.amount) }}</span>
+            <div class="row-actions">
+              @if (deleting() === t.id) {
+                <button type="button" class="btn btn-sm btn-danger-quiet" (click)="deleteTransfer(t)">Excluir?</button>
+              } @else {
+                <button type="button" class="icon-btn" title="Excluir" aria-label="Excluir" (click)="deleting.set(t.id)">
+                  <i class="bi bi-trash3" aria-hidden="true"></i>
+                </button>
+              }
+            </div>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+
+  <section class="card-m">
+    <h2 class="card-title-m mb-1">Mínimo de segurança</h2>
+    <p class="subtle">Valor que não entra no "disponível para gastar".</p>
+    <form class="inline" (submit)="$event.preventDefault(); saveSafety()">
+      <input class="form-control money" [formControl]="safety" inputmode="decimal" placeholder="0,00"
+             aria-label="Mínimo de segurança" />
+      <button type="submit" class="btn btn-brand">Salvar</button>
+    </form>
+    @if (safetySaved()) { <p class="field-ok">Mínimo atualizado.</p> }
+  </section>
+
+  <section class="card-m">
+    <div class="section-head">
+      <h2 class="card-title-m">Categorias</h2>
+      <div class="segmented compact" role="group" aria-label="Tipo de categoria">
+        <button type="button" [class.active]="categoryKind() === 'expense'" (click)="categoryKind.set('expense')">Despesas</button>
+        <button type="button" [class.active]="categoryKind() === 'income'" (click)="categoryKind.set('income')">Receitas</button>
+      </div>
+    </div>
+    <form class="inline mb-2" (submit)="$event.preventDefault(); addCategory()">
+      <input class="form-control" [formControl]="newCategory" maxlength="60"
+             placeholder="Nova categoria" aria-label="Nova categoria" />
+      <button type="submit" class="btn btn-quiet">Adicionar</button>
+    </form>
+    <ul class="rows">
+      @for (c of visibleCategories(); track c.id) {
+        <li class="row-item compact-row">
+          <div class="row-main">
+            @if (renaming() === c.id) {
+              <input class="form-control form-control-sm" [(ngModel)]="renameValue" maxlength="60"
+                     aria-label="Novo nome" (keydown.enter)="rename(c)" />
+            } @else {
+              <span><i class="bi bi-{{ c.icon }} me-2 muted" aria-hidden="true"></i>{{ c.name }}</span>
+            }
+          </div>
+          <div class="row-actions">
+            @if (renaming() === c.id) {
+              <button type="button" class="btn btn-quiet btn-sm" (click)="rename(c)">Salvar</button>
+            } @else {
+              <button type="button" class="icon-btn" title="Renomear" aria-label="Renomear" (click)="startRename(c)">
+                <i class="bi bi-pencil" aria-hidden="true"></i>
+              </button>
+            }
+            @if (deleting() === c.id) {
+              <button type="button" class="btn btn-sm btn-danger-quiet" (click)="deleteCategory(c)">Excluir?</button>
+            } @else {
+              <button type="button" class="icon-btn" title="Excluir" aria-label="Excluir" (click)="deleting.set(c.id)">
+                <i class="bi bi-trash3" aria-hidden="true"></i>
+              </button>
+            }
+          </div>
+        </li>
+      }
+    </ul>
+  </section>
+</div>
+
+@if (accountDialog()) {
+  <app-dialog #accountBox [heading]="editingAccount() ? 'Editar conta' : 'Nova conta'" (closed)="accountDialog.set(false)">
+    <form [formGroup]="accountForm" (ngSubmit)="saveAccount(accountBox)" novalidate>
+      <div class="mb-3">
+        <label class="form-label" for="ac-name">Nome</label>
+        <input id="ac-name" class="form-control" formControlName="name" maxlength="80" />
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="ac-type">Tipo</label>
+        <select id="ac-type" class="form-select" formControlName="type">
+          @for (t of types; track t[0]) { <option [value]="t[0]">{{ t[1] }}</option> }
+        </select>
+      </div>
+      <div class="grid-2 mb-3">
+        <div>
+          <label class="form-label" for="ac-opening">Saldo de abertura</label>
+          <input id="ac-opening" class="form-control money" formControlName="opening_balance"
+                 inputmode="decimal" placeholder="0,00" />
+        </div>
+        <div>
+          <label class="form-label" for="ac-date">Data do saldo</label>
+          <input id="ac-date" class="form-control" type="date" formControlName="opening_date" />
+        </div>
+      </div>
+      @if (editingAccount()) {
+        <div class="mb-3">
+          <label class="form-label" for="ac-real">Saldo real no banco (opcional)</label>
+          <input id="ac-real" class="form-control money" formControlName="real_balance"
+                 inputmode="decimal" placeholder="0,00" />
+          <div class="subtle mt-1">Serve para comparar com o saldo calculado; não altera nenhum cálculo.</div>
+        </div>
+      }
+      @if (formError()) { <p class="field-error mb-2" role="alert">{{ formError() }}</p> }
+      <button type="submit" class="btn btn-brand w-100" [disabled]="busy()">Salvar</button>
+    </form>
+  </app-dialog>
+}
+
+@if (transferDialog()) {
+  <app-dialog #transferBox heading="Transferir entre contas" (closed)="transferDialog.set(false)">
+    <form [formGroup]="transferForm" (ngSubmit)="saveTransfer(transferBox)" novalidate>
+      <div class="grid-2 mb-3">
+        <div>
+          <label class="form-label" for="tr-from">De</label>
+          <select id="tr-from" class="form-select" formControlName="from_account_id">
+            <option value="">Escolha</option>
+            @for (a of activeAccounts(); track a.id) { <option [value]="a.id">{{ a.name }}</option> }
+          </select>
+        </div>
+        <div>
+          <label class="form-label" for="tr-to">Para</label>
+          <select id="tr-to" class="form-select" formControlName="to_account_id">
+            <option value="">Escolha</option>
+            @for (a of activeAccounts(); track a.id) { <option [value]="a.id">{{ a.name }}</option> }
+          </select>
+        </div>
+      </div>
+      <div class="grid-2 mb-3">
+        <div>
+          <label class="form-label" for="tr-amount">Valor</label>
+          <input id="tr-amount" class="form-control money" formControlName="amount" inputmode="decimal" placeholder="0,00" />
+        </div>
+        <div>
+          <label class="form-label" for="tr-date">Data</label>
+          <input id="tr-date" class="form-control" type="date" formControlName="date" [max]="today" />
+        </div>
+      </div>
+      <p class="subtle">Transferências não contam como receita nem despesa.</p>
+      @if (formError()) { <p class="field-error mb-2" role="alert">{{ formError() }}</p> }
+      <button type="submit" class="btn btn-brand w-100" [disabled]="busy()">Transferir</button>
+    </form>
+  </app-dialog>
+}

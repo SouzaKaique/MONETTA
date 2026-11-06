@@ -3,33 +3,28 @@
     <h1 class="page-title">Olá, {{ firstName() }}</h1>
     <p class="muted mb-0">Sua situação financeira do mês.</p>
   </div>
-  @if (data()) {
-    <div class="month-picker" role="group" aria-label="Selecionar mês">
-      <button type="button" class="btn btn-quiet" aria-label="Mês anterior" [disabled]="loading()" (click)="go(-1)">
-        <i class="bi bi-chevron-left" aria-hidden="true"></i>
-      </button>
-      <span class="month-label" aria-live="polite">{{ monthLabel() }}</span>
-      <button type="button" class="btn btn-quiet" aria-label="Próximo mês" [disabled]="loading()" (click)="go(1)">
-        <i class="bi bi-chevron-right" aria-hidden="true"></i>
-      </button>
-    </div>
-  }
+  <app-month-picker [month]="month()" (monthChange)="month.set($event)" />
 </header>
 
 @if (failed()) {
   <div class="notice notice-critical mt-4" role="alert">
     <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
     <span>Não foi possível carregar o dashboard.
-      <button type="button" class="link-btn" (click)="load(data()?.month)">Tentar de novo</button>
+      <button type="button" class="link-btn" (click)="load(month())">Tentar de novo</button>
     </span>
   </div>
 }
 
 @if (data(); as d) {
-  @if (!d.has_data) {
+  @if (!d.has_accounts) {
     <div class="notice notice-info mt-4">
       <i class="bi bi-info-circle" aria-hidden="true"></i>
-      <span>Sua conta está criada e ainda não tem lançamentos. O cadastro de contas, salário e despesas chega na Etapa 2.</span>
+      <span>Primeiro passo: <a routerLink="/configuracoes">cadastre sua conta</a> com o saldo de hoje.</span>
+    </div>
+  } @else if (!d.has_salary) {
+    <div class="notice notice-info mt-4">
+      <i class="bi bi-info-circle" aria-hidden="true"></i>
+      <span>Agora <a routerLink="/receitas">cadastre seu salário</a> para o sistema prever sua renda.</span>
     </div>
   }
 
@@ -99,7 +94,7 @@
           }
         </ul>
       } @else {
-        <p class="subtle mb-0">Nenhuma despesa em {{ monthLabel() }}.</p>
+        <p class="subtle mb-0">Nenhuma despesa neste mês.</p>
       }
     </article>
   </section>

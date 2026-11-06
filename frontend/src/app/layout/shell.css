@@ -61,10 +61,46 @@ main { margin: 0 auto; max-width: 1180px; padding: 2rem; }
 
 .topbar, .bottom-nav, .sheet, .sheet-backdrop { display: none; }
 
+.quick-add {
+  align-items: center;
+  background: var(--brand);
+  border: 0;
+  border-radius: 999px;
+  bottom: 1.5rem;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 18%);
+  color: var(--brand-ink);
+  display: flex;
+  font-weight: 500;
+  gap: 0.45rem;
+  padding: 0.7rem 1.1rem;
+  position: fixed;
+  right: 1.5rem;
+  z-index: 15;
+}
+.quick-add:hover { filter: brightness(1.15); }
+main { padding-bottom: 5rem; }
+
 @media (max-width: 991.98px) {
   .sidebar { display: none; }
   .content { margin-left: 0; }
-  main { padding: 1rem 1rem calc(5.5rem + env(safe-area-inset-bottom)); }
+  main { padding: 1rem 1rem calc(9rem + env(safe-area-inset-bottom)); }
+
+  /* No celular o botão fica só com o ícone, acima da barra inferior. */
+  .quick-add {
+    bottom: calc(70px + env(safe-area-inset-bottom));
+    height: 52px;
+    justify-content: center;
+    padding: 0;
+    right: 1rem;
+    width: 52px;
+  }
+  .quick-add span {
+    clip: rect(0 0 0 0);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    width: 1px;
+  }
 
   .topbar {
     align-items: center;

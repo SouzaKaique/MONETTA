@@ -35,6 +35,9 @@ export function apiMessage(error: unknown, fallback: string): string {
   if (error instanceof HttpErrorResponse && error.status === 0) {
     return 'Não foi possível falar com o servidor.';
   }
-  const message = (error as HttpErrorResponse)?.error?.error;
-  return typeof message === 'string' ? message : fallback;
+  const body = (error as HttpErrorResponse)?.error;
+  // Erro de validação: a mensagem do campo diz mais do que "Dados inválidos".
+  const fieldMessages = body?.fields ? Object.values(body.fields).flat() : [];
+  if (typeof fieldMessages[0] === 'string') return fieldMessages[0];
+  return typeof body?.error === 'string' ? body.error : fallback;
 }

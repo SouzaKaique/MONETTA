@@ -1,0 +1,11 @@
+.stack {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  max-width: 720px;
+}
+
+.inline { display: flex; gap: 0.5rem; }
+.inline .form-control { flex: 1; min-width: 0; }
+
+.compact-row { padding-bottom: 0.4rem; padding-top: 0.4rem; }

@@ -61,14 +61,15 @@ serviço de envio de e-mail.
 
 ## Modelo de dados
 
-**Na Etapa 1:** `users`, `user_identities`, `user_sessions`, `oauth_states`, `app_settings`,
+**Etapa 1:** `users`, `user_identities`, `user_sessions`, `oauth_states`, `app_settings`,
 `accounts`, `categories`, `transactions`.
+
+**Etapa 2:** `recurrences`, `recurrence_amounts`, `recurrence_skips`, `transfers`.
 
 **Nas próximas etapas, por migração:**
 
 | Etapa | Tabelas |
 |---|---|
-| 2 | `recurrences` |
 | 3 | `credit_cards`, `invoices`, `card_purchases`, `installments` |
 | 4 | `debts`, `debt_payments` |
 | 5 | `budgets`, `notifications`, `financial_events` |
@@ -76,10 +77,26 @@ serviço de envio de e-mail.
 
 ## Regras do saldo
 
-- **Saldo atual:** abertura das contas + entradas confirmadas − saídas confirmadas, até hoje.
-- **Disponível para gastar:** saldo atual − despesas pendentes do mês − mínimo de segurança, nunca
-  abaixo de zero. Receita futura nunca entra nesta conta.
+- **Saldo atual:** abertura das contas ativas + entradas confirmadas − saídas confirmadas, até hoje.
+  Movimentos anteriores à data de abertura ficam de fora, porque o saldo de abertura já os contém.
+- **Disponível para gastar:** saldo atual − despesas pendentes até o fim do mês, incluindo atrasadas
+  − mínimo de segurança, nunca abaixo de zero. Receita futura nunca entra nesta conta.
 - **Renda comprometida:** despesas do mês ÷ renda do mês. Aqui o previsto entra, apenas como medida.
+- **Dinheiro livre:** renda prevista − despesas do mês, por competência. Não é saldo em conta.
+- **Transferências:** mudam o saldo de cada conta, mas não o total, nem receitas ou despesas.
+- **Saldo real:** informado pelo usuário só para comparar; nunca entra em cálculo.
+
+## Recorrências
+
+- **Geração:** antes de cada leitura, o backend cria as ocorrências que faltam. Sempre cobre o mês
+  seguinte e vai até 24 meses à frente quando um mês futuro é consultado. Uma constraint impede
+  ocorrências duplicadas em requisições simultâneas.
+- **Reajuste:** cada valor tem um mês de início (`recurrence_amounts`). Só muda pendências desse mês
+  em diante; lançamentos confirmados e valores editados à mão são preservados. Valor retroativo é
+  recusado.
+- **Excluir uma ocorrência:** fica registrado em `recurrence_skips`, para ela não reaparecer.
+- **Pausar:** remove as pendências a partir de hoje. Ao reativar, os meses da pausa não são criados.
+- **Excluir a regra:** remove as pendências e mantém o que já foi confirmado.
 
 ## Identidade visual
 

@@ -45,6 +45,7 @@ def user_payload(user: User) -> dict:
         "has_password": user.password_hash is not None,
         "providers": sorted(i.provider for i in user.identities),
         "theme": user.settings.theme,
+        "safety_minimum": user.settings.safety_minimum,
         "created_at": user.created_at.isoformat(),
     }
 
