@@ -7,7 +7,7 @@ from marshmallow import Schema, fields, validate
 from ..extensions import db
 from ..models import User
 from ..models.common import utcnow
-from ..services import oauth
+from ..services import oauth, ratelimit
 from ..services.accounts import create_user
 from ..services.security import (
     end_session_cookie, hash_password, revoke_all_sessions,
@@ -18,6 +18,8 @@ from .common import error, load_body, login_required, user_payload
 bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
 MAX_FAILED_LOGINS = 5
+LOGIN_PER_MINUTE = 20
+REGISTER_PER_MINUTE = 10
 LOCK_MINUTES = 15
 PasswordField = fields.String(required=True, validate=validate.Length(min=10, max=128))
 
@@ -40,6 +42,8 @@ def providers():
 
 @bp.post("/register")
 def register():
+    if not ratelimit.allow(f"register:{request.remote_addr}", REGISTER_PER_MINUTE):
+        return error("Muitas tentativas. Aguarde um minuto.", 429)
     data = load_body(RegisterSchema())
     email = data["email"].strip().lower()
     if db.session.scalar(db.select(User.id).filter_by(email=email)):
@@ -56,6 +60,8 @@ def register():
 
 @bp.post("/login")
 def login():
+    if not ratelimit.allow(f"login:{request.remote_addr}", LOGIN_PER_MINUTE):
+        return error("Muitas tentativas. Aguarde um minuto.", 429)
     data = load_body(LoginSchema())
     user = db.session.scalar(db.select(User).filter_by(email=data["email"].strip().lower()))
     invalid = error("E-mail ou senha incorretos.", 401)

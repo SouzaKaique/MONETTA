@@ -1,12 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/http';
 
-/** Áreas que ainda não existem: a rota explica o que vem e em qual etapa. */
-const upcoming = (title: string, stage: number, description: string) => ({
-  loadComponent: () => import('./pages/upcoming/upcoming').then((m) => m.Upcoming),
-  data: { title, stage, description },
-});
-
 export const routes: Routes = [
   {
     path: 'login',
@@ -76,7 +70,10 @@ export const routes: Routes = [
         path: 'wishlist',
         loadComponent: () => import('./pages/wishlist/wishlist').then((m) => m.WishlistPage),
       },
-      { path: 'relatorios', ...upcoming('Relatórios', 7, 'Gráficos por período e exportação em CSV.') },
+      {
+        path: 'relatorios',
+        loadComponent: () => import('./pages/reports/reports').then((m) => m.ReportsPage),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

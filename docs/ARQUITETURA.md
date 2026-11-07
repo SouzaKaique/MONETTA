@@ -75,10 +75,7 @@ a partir dos módulos, por isso não existe tabela `financial_events`: uma cópi
 
 **Etapa 6:** `wishlist_items`, `savings_goals`, `goal_contributions`, `wishlist_images`.
 
-**Nas próximas etapas, por migração:**
-
-| Etapa | Tabelas |
-|---|---|
+**Etapa 7:** `api_tokens`.
 
 ## Regras do saldo
 
@@ -180,6 +177,42 @@ a partir dos módulos, por isso não existe tabela `financial_events`: uma cópi
   pede atenção. A wishlist perde o orçamento planejado no mês. Nada é bloqueado.
 - **Imagens:** envio de PNG, JPEG ou WEBP de até 2 MB, validado pelo conteúdo e servido só ao dono;
   ou endereço HTTPS externo. Links aceitam apenas HTTP e HTTPS.
+
+## Relatórios, exportação e backup
+
+- **Relatórios:** por mês, trimestre ou ano. Usam a mesma série mensal do dashboard, então os dois
+  nunca divergem. Pagar uma fatura não altera nenhum total do relatório.
+- **Economia:** receitas confirmadas − despesas − pagamentos de dívidas, sobre as receitas.
+- **CSV:** separado por ponto e vírgula, com BOM e vírgula decimal, para o Excel em português.
+  Textos que começam com `=`, `+`, `-` ou `@` recebem um apóstrofo para não virarem fórmula.
+- **Backup do usuário:** JSON com todos os dados financeiros, sem senha, sessões nem tokens.
+- **Restauração:** só em conta vazia. Aceita apenas colunas conhecidas, gera novos identificadores
+  e recusa referências que não estejam no próprio arquivo. Tudo ou nada, em uma transação.
+- **Backup do banco:** `scripts/backup.ps1` faz o `pg_dump` e mantém os 14 mais recentes.
+
+## Integrações
+
+- Token com 256 bits, mostrado uma vez e salvo só como hash. Revogável e com escopo restrito: ele
+  não autentica nenhuma rota além de `/api/integrations/`.
+- Limite de 30 requisições por minuto por token, e até 10 tokens ativos por usuário.
+- Repetição bloqueada pela chave de idempotência, gerada pelo cliente ou pelo conteúdo do envio.
+
+## PWA
+
+- O service worker guarda só os arquivos do aplicativo. `dataGroups` fica vazio: dados financeiros
+  nunca vão para o cache do aparelho, e o app não mostra informações sem conexão.
+- `/api/` fica fora das navegações do service worker. Sem isso, ele responderia com o app às
+  rotas de login social e aos downloads.
+
+## Segurança
+
+- **Política de conteúdo:** sem scripts inline ou de terceiros. Por isso o tema inicial fica em
+  `theme-init.js` e o `inlineCritical` do Angular está desligado: ele usa `onload` no HTML.
+- **Cabeçalhos:** `nosniff`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` e HSTS em HTTPS.
+- **Limites:** login 20 e cadastro 10 por minuto por endereço, além do bloqueio por conta.
+  Ficam em memória, então valem para um processo. Atrás de proxy, é preciso repassar o IP real.
+- **CSRF e CORS:** header exigido nas escritas da sessão; a API não libera outras origens. A rota
+  de integrações dispensa o header porque não usa cookie.
 
 ## Identidade visual
 

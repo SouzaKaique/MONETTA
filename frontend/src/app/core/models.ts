@@ -67,6 +67,13 @@ export interface HistoryPoint {
   month: string;
   income: string;
   expenses: string;
+  cards: string;
+  debt_paid: string;
+  saved: string;
+  balance: Money;
+  debt_balance: Money;
+  commitment_pct: number | null;
+  savings_pct: number | null;
 }
 
 export interface Dashboard {
@@ -75,6 +82,7 @@ export interface Dashboard {
   has_accounts: boolean;
   has_salary: boolean;
   has_data: boolean;
+  distribution: { key: string; label: string; amount: string }[];
   recovery_active: boolean;
   summary: DashboardSummary;
   history: HistoryPoint[];
@@ -436,6 +444,37 @@ export interface PurchaseAdvice {
   saved: string;
   need: string;
   checks: { label: string; status: 'ok' | 'warning' | 'bad'; detail: string }[];
+}
+
+export type ReportPeriod = 'month' | 'quarter' | 'year';
+
+export interface Report {
+  period: ReportPeriod;
+  start: string;
+  end: string;
+  totals: {
+    income: string;
+    expenses: string;
+    cards: string;
+    debt_paid: string;
+    saved: string;
+    result: string;
+    savings_pct: number | null;
+  };
+  evolution: HistoryPoint[];
+  categories: { category: string; total: string }[];
+  distribution: { key: string; label: string; amount: string }[];
+  debt_payments: { date: string; debt: string; amount: string }[];
+  wishlist: { name: string; saved: string; target: string; pct: number }[];
+  insights: string[];
+}
+
+export interface ApiTokenInfo {
+  id: string;
+  name: string;
+  prefix: string;
+  created_at: string;
+  last_used_at: string | null;
 }
 
 export interface Transfer {

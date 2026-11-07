@@ -187,6 +187,63 @@
   </section>
 </div>
 
+<div class="stack mt-3">
+  <section class="card-m">
+    <h2 class="card-title-m mb-1">Backup</h2>
+    <p class="subtle">Guarda todos os seus dados em um arquivo. A restauração só funciona em uma conta sem dados, para nunca sobrescrever nada.</p>
+    <div class="d-flex gap-2 flex-wrap">
+      <a class="btn btn-quiet" href="/api/backup" download>
+        <i class="bi bi-download me-1" aria-hidden="true"></i>Baixar backup
+      </a>
+      <label class="btn btn-quiet mb-0" for="restore-file">
+        <i class="bi bi-upload me-1" aria-hidden="true"></i>Restaurar
+      </label>
+      <input id="restore-file" class="visually-hidden" type="file" accept="application/json,.json" (change)="restore($event)" />
+    </div>
+    @if (backupMessage()) { <p class="field-ok">{{ backupMessage() }}</p> }
+    @if (backupError()) { <p class="field-error" role="alert">{{ backupError() }}</p> }
+    <p class="subtle mt-2 mb-0">O arquivo contém seus dados financeiros sem criptografia. Guarde-o em local seguro.</p>
+  </section>
+
+  <section class="card-m">
+    <h2 class="card-title-m mb-1">Integrações</h2>
+    <p class="subtle">Tokens permitem registrar despesas pelo app Atalhos do iPhone. Eles só criam lançamentos e podem ser revogados a qualquer momento.</p>
+    <form class="inline mb-2" (submit)="$event.preventDefault(); createToken()">
+      <input class="form-control" [formControl]="tokenName" maxlength="60" placeholder="Nome, como iPhone" aria-label="Nome do token" />
+      <button type="submit" class="btn btn-quiet">Criar token</button>
+    </form>
+    @if (newToken(); as value) {
+      <div class="notice notice-warning token-box" role="status">
+        <span>
+          <strong>Copie agora: este token não será mostrado de novo.</strong>
+          <code>{{ value }}</code>
+        </span>
+        <button type="button" class="btn btn-quiet btn-sm" (click)="copyToken(value)">{{ copied() ? 'Copiado' : 'Copiar' }}</button>
+      </div>
+    }
+    @if (tokenError()) { <p class="field-error" role="alert">{{ tokenError() }}</p> }
+    <ul class="rows">
+      @for (t of tokens(); track t.id) {
+        <li class="row-item">
+          <div class="row-main">
+            <strong>{{ t.name }}</strong>
+            <span class="row-meta">
+              {{ t.prefix }}… · {{ t.last_used_at ? 'usado em ' + date(t.last_used_at) : 'nunca usado' }}
+            </span>
+          </div>
+          <div class="row-actions">
+            @if (deleting() === t.id) {
+              <button type="button" class="btn btn-sm btn-danger-quiet" (click)="revokeToken(t.id)">Revogar?</button>
+            } @else {
+              <button type="button" class="btn btn-quiet btn-sm" (click)="deleting.set(t.id)">Revogar</button>
+            }
+          </div>
+        </li>
+      }
+    </ul>
+  </section>
+</div>
+
 @if (accountDialog()) {
   <app-dialog #accountBox [heading]="editingAccount() ? 'Editar conta' : 'Nova conta'" (closed)="accountDialog.set(false)">
     <form [formGroup]="accountForm" (ngSubmit)="saveAccount(accountBox)" novalidate>

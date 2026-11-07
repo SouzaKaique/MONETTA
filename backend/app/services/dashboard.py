@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 from ..extensions import db
 from ..models import Account, AppSettings, Category, Recurrence, Transaction
-from . import alerts, cards, debts, recovery, spending, wishlist
+from . import alerts, budgets, cards, debts, recovery, spending, wishlist
 from .balances import ZERO, total_balance
 from .periods import month_bounds, shift_month, today_for
 from .recurrences import generate, generation_horizon
@@ -46,22 +46,60 @@ def pending_expenses_until(user_id: UUID, day: date) -> Decimal:
     ))
 
 
-def _history(user_id: UUID, year: int, month: int) -> list[dict]:
-    rows = []
-    for offset in range(-(HISTORY_MONTHS - 1), 1):
-        y, m = shift_month(year, month, offset)
-        start, end = month_bounds(y, m)
-        rows.append({
-            "month": f"{y:04d}-{m:02d}",
-            "income": _month_total(user_id, start, end, Transaction.kind == "income",
-                                   Transaction.status == "confirmed"),
-            "expenses": _month_total(user_id, start, end, Transaction.kind == "expense")
-            + cards.installments_total(user_id, start, end),
-        })
-    return rows
+def month_row(user_id: UUID, year: int, month: int, today: date) -> dict:
+    """Valores de um mês para gráficos e relatórios; saldo só existe até hoje."""
+    start, end = month_bounds(year, month)
+    is_income = Transaction.kind == "income"
+    income = _month_total(user_id, start, end, is_income, Transaction.status == "confirmed")
+    planned = _month_total(user_id, start, end, is_income, Transaction.status == "pending")
+    card_total = cards.installments_total(user_id, start, end)
+    expenses = _month_total(user_id, start, end, Transaction.kind == "expense") + card_total
+    debt_paid = debts.paid_between(user_id, start, end)
+    base = income + planned
+    left = income - expenses - debt_paid
+    started = start <= today
+    day = min(end, today)
+    return {
+        "month": f"{year:04d}-{month:02d}",
+        "income": income,
+        "expenses": expenses,
+        "cards": card_total,
+        "debt_paid": debt_paid,
+        "saved": wishlist.contributed_between(user_id, start, end),
+        "balance": total_balance(user_id, day) if started else None,
+        "debt_balance": recovery.balance_at(debts.user_debts(user_id), day) if started else None,
+        "commitment_pct": round((expenses + debt_paid) / base * 100) if base > 0 else None,
+        "savings_pct": round(left / income * 100) if income > 0 else None,
+    }
 
 
-def _by_category(user_id: UUID, start: date, end: date) -> list[dict]:
+def _history(user_id: UUID, year: int, month: int, today: date) -> list[dict]:
+    return [
+        month_row(user_id, *shift_month(year, month, offset), today)
+        for offset in range(-(HISTORY_MONTHS - 1), 1)
+    ]
+
+
+def income_distribution(
+    user_id: UUID, settings: AppSettings, start: date, end: date, rows: list[dict],
+) -> list[dict]:
+    """Realizado no período: cada real aparece em um único grupo."""
+    essential, other = budgets.essential_split(user_id, start, end)
+    income = sum((r["income"] for r in rows), ZERO)
+    card_total = sum((r["cards"] for r in rows), ZERO)
+    debt_total = sum((r["debt_paid"] for r in rows), ZERO)
+    saved = sum((r["saved"] for r in rows), ZERO)
+    return [
+        {"key": "essential", "label": "Essenciais", "amount": essential},
+        {"key": "variable", "label": "Variáveis", "amount": other},
+        {"key": "cards", "label": "Cartões", "amount": card_total},
+        {"key": "debts", "label": "Dívidas", "amount": debt_total},
+        {"key": "saved", "label": "Guardado", "amount": saved},
+        {"key": "free", "label": "Sobrou", "amount": income - essential - other - card_total - debt_total - saved},
+    ]
+
+
+def by_category(user_id: UUID, start: date, end: date) -> list[dict]:
     rows = db.session.execute(
         sa.select(Category.name, sa.func.sum(Transaction.amount))
         .select_from(Transaction)
@@ -186,6 +224,7 @@ def build_dashboard(
     has_transactions = db.session.scalar(
         sa.select(sa.exists().where(Transaction.user_id == user_id))
     )
+    history = _history(user_id, year, month, today)
     month_alerts = alerts.collect(user_id, settings, summary, today, year, month, is_current)
     if sync_alerts:
         alerts.sync(user_id, settings, month_alerts)
@@ -196,8 +235,9 @@ def build_dashboard(
         "has_salary": bool(has_salary),
         "has_data": bool(has_accounts or has_transactions),
         "summary": summary,
-        "history": _history(user_id, year, month),
-        "by_category": _by_category(user_id, start, end),
+        "history": history,
+        "distribution": income_distribution(user_id, settings, start, end, history[-1:]),
+        "by_category": by_category(user_id, start, end),
         "recovery_active": recovery.active_plan(user_id) is not None,
         "alerts": month_alerts,
     }

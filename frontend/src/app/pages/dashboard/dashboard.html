@@ -115,6 +115,36 @@
       }
     </article>
   </section>
+
+  <section class="trends" aria-label="Evolução dos últimos meses">
+    <article class="card-m">
+      <h2 class="card-title-m mb-2">Evolução do saldo</h2>
+      <app-trend-chart title="Evolução do saldo" [height]="160" [labels]="labels()" [series]="balanceSeries()" />
+    </article>
+    <article class="card-m">
+      <h2 class="card-title-m mb-2">Evolução das dívidas</h2>
+      <app-trend-chart title="Evolução das dívidas" [height]="160" [labels]="labels()" [series]="debtSeries()" />
+    </article>
+    <article class="card-m">
+      <h2 class="card-title-m mb-2">Comprometimento mensal</h2>
+      <app-trend-chart title="Comprometimento mensal" format="pct" [height]="160" [labels]="labels()" [series]="commitmentSeries()" />
+    </article>
+    <article class="card-m">
+      <h2 class="card-title-m mb-2">Gastos com cartões</h2>
+      <app-trend-chart title="Gastos com cartões" kind="bar" [height]="160" [labels]="labels()" [series]="cardSeries()" />
+    </article>
+    <article class="card-m">
+      <h2 class="card-title-m mb-3">Distribuição da renda</h2>
+      <ul class="categories">
+        @for (part of d.distribution; track part.key) {
+          <li>
+            <div class="cat-row"><span>{{ part.label }}</span><span class="money">{{ money(part.amount) }}</span></div>
+            <div class="cat-track"><span [style.width.%]="partWidth(part.amount)"></span></div>
+          </li>
+        }
+      </ul>
+    </article>
+  </section>
 } @else if (loading()) {
   <div class="skeleton mt-4" aria-busy="true" aria-label="Carregando"></div>
 }

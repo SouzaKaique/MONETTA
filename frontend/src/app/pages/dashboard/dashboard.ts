@@ -3,9 +3,10 @@ import { RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
 import { FinanceService } from '../../core/finance.service';
-import { formatMoney, todayIso } from '../../core/format';
-import { Dashboard, Money } from '../../core/models';
+import { formatMoney, formatMonthShort, todayIso } from '../../core/format';
+import { Dashboard, HistoryPoint, Money } from '../../core/models';
 import { MonthPicker } from '../../shared/month-picker';
+import { TrendChart, TrendSeries } from '../../shared/trend-chart';
 import { HistoryChart } from './history-chart';
 import { UntilSalaryCard } from './until-salary';
 
@@ -17,7 +18,7 @@ interface Kpi {
 
 @Component({
   selector: 'app-dashboard',
-  imports: [HistoryChart, MonthPicker, RouterLink, UntilSalaryCard],
+  imports: [HistoryChart, MonthPicker, RouterLink, TrendChart, UntilSalaryCard],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
 })
@@ -55,6 +56,30 @@ export class DashboardPage {
       { label: 'Valor economizado', value: s.saved_total, hint: 'Guardado para a wishlist' },
     ];
   });
+
+  private readonly history = computed(() => this.data()?.history ?? []);
+  protected readonly labels = computed(() => this.history().map((r) => formatMonthShort(r.month)));
+  private series(label: string, pick: (r: HistoryPoint) => string | number | null): TrendSeries[] {
+    const values = this.history().map((r) => {
+      const value = pick(r);
+      return value === null ? null : Number(value);
+    });
+    return [{ label, values, token: '--series-1' }];
+  }
+  protected readonly balanceSeries = computed(() => this.series('Saldo', (r) => r.balance));
+  protected readonly debtSeries = computed(() => this.series('Dívidas', (r) => r.debt_balance));
+  protected readonly cardSeries = computed(() => this.series('Cartões', (r) => r.cards));
+  protected readonly commitmentSeries = computed(() =>
+    this.series('Comprometimento', (r) => r.commitment_pct),
+  );
+  private readonly maxPart = computed(() =>
+    Math.max(0, ...(this.data()?.distribution ?? []).map((d) => Number(d.amount))),
+  );
+
+  protected partWidth(amount: string): number {
+    const max = this.maxPart();
+    return max > 0 ? Math.max(0, (Number(amount) / max) * 100) : 0;
+  }
 
   protected readonly maxCategory = computed(() =>
     Math.max(0, ...(this.data()?.by_category ?? []).map((c) => Number(c.total))),

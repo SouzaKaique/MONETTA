@@ -13,6 +13,9 @@ class Config:
     APP_TIMEZONE = os.environ.get("APP_TIMEZONE", "America/Sao_Paulo")
     PUBLIC_URL = os.environ.get("PUBLIC_URL", "http://localhost:4200").rstrip("/")
     SESSION_DAYS = 30
+    # Acima das imagens de 2 MB, para caber um backup completo.
+    MAX_CONTENT_LENGTH = 25 * 1024 * 1024
+    SERVE_FRONTEND = os.environ.get("SERVE_FRONTEND") == "1"
 
     GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
     GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")

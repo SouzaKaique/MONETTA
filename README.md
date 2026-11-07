@@ -31,6 +31,49 @@ cd frontend; npm start
 
 Abra http://localhost:4200.
 
+## Publicar em produção
+
+O app instalável, o service worker e o atalho do iPhone exigem HTTPS.
+
+1. Gere o aplicativo:
+
+```powershell
+cd frontend; npx ng build
+```
+
+2. No `.env`, defina `PUBLIC_URL=https://SEU-DOMINIO`. Isso ativa cookies seguros e HSTS.
+3. Aplique as migrações e inicie o servidor, que responde em `127.0.0.1:5000`:
+
+```powershell
+cd backend; .\.venv\Scripts\python -m flask --app wsgi.py db upgrade
+```
+
+```powershell
+cd backend; .\.venv\Scripts\python serve.py
+```
+
+4. Coloque um proxy com HTTPS na frente, como Caddy, Nginx ou Cloudflare Tunnel.
+
+Para usar a mesma base em produção, migre os dados com o backup em **Configurações**.
+
+## Instalar no celular
+
+Abra o endereço publicado. No iPhone, use o Safari: **Compartilhar → Adicionar à Tela de Início**.
+No Android, use **Instalar app** no Chrome.
+
+## Atalho do iPhone
+
+Veja [docs/ATALHO-IPHONE.md](docs/ATALHO-IPHONE.md).
+
+## Backup
+
+- **Pelo app:** **Configurações → Backup** baixa um arquivo com seus dados.
+- **Banco completo:** rode o script abaixo. Para backup periódico, agende-o no Agendador de Tarefas.
+
+```powershell
+.\scripts\backup.ps1
+```
+
 ## Testes
 
 ```powershell

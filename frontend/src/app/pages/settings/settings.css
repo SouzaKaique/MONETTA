@@ -8,4 +8,8 @@
 .inline { display: flex; gap: 0.5rem; }
 .inline .form-control { flex: 1; min-width: 0; }
 
+.token-box { align-items: center; flex-wrap: wrap; justify-content: space-between; margin-bottom: 0.5rem; }
+.token-box span { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+.token-box code { color: inherit; overflow-wrap: anywhere; }
+
 .compact-row { padding-bottom: 0.4rem; padding-top: 0.4rem; }

@@ -4,7 +4,7 @@ import { AuthService } from '../../core/auth.service';
 import { FinanceService } from '../../core/finance.service';
 import { formatDate, formatMoney, moneyToInput, parseMoney, todayIso } from '../../core/format';
 import { apiMessage } from '../../core/http';
-import { Account, Category, Kind, Transfer } from '../../core/models';
+import { Account, ApiTokenInfo, Category, Kind, Transfer } from '../../core/models';
 import { Dialog } from '../../shared/dialog';
 
 const ACCOUNT_TYPES: Record<string, string> = {
@@ -41,6 +41,15 @@ export class SettingsPage {
     moneyToInput(this.auth.user()?.safety_minimum), { nonNullable: true },
   );
   protected readonly safetySaved = signal(false);
+
+  // Backup e integrações
+  protected readonly backupMessage = signal<string | null>(null);
+  protected readonly backupError = signal<string | null>(null);
+  protected readonly tokens = signal<ApiTokenInfo[]>([]);
+  protected readonly newToken = signal<string | null>(null);
+  protected readonly copied = signal(false);
+  protected readonly tokenError = signal<string | null>(null);
+  protected readonly tokenName = new FormControl('', { nonNullable: true });
 
   // Alertas
   protected readonly alertKinds = [
@@ -102,6 +111,7 @@ export class SettingsPage {
     this.finance.accounts().subscribe({ next: (a) => this.accounts.set(a), error: fail });
     this.finance.categories().subscribe({ next: (c) => this.categories.set(c), error: fail });
     this.finance.transfers().subscribe({ next: (t) => this.transfers.set(t), error: fail });
+    this.finance.tokens().subscribe({ next: (t) => this.tokens.set(t), error: fail });
   }
 
   protected saveSafety(): void {
@@ -118,6 +128,55 @@ export class SettingsPage {
         this.finance.revision.update((v) => v + 1);
       },
       error: (e) => this.error.set(apiMessage(e, 'Não foi possível salvar.')),
+    });
+  }
+
+  protected async restore(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    this.backupMessage.set(null);
+    this.backupError.set(null);
+    if (!file) return;
+    let payload: unknown;
+    try {
+      payload = JSON.parse(await file.text());
+    } catch {
+      this.backupError.set('Este arquivo não é um backup válido.');
+      return;
+    } finally {
+      input.value = '';
+    }
+    this.finance.restoreBackup(payload).subscribe({
+      next: () => this.backupMessage.set('Dados restaurados.'),
+      error: (e) => this.backupError.set(apiMessage(e, 'Não foi possível restaurar.')),
+    });
+  }
+
+  protected createToken(): void {
+    this.tokenError.set(null);
+    this.copied.set(false);
+    const name = this.tokenName.value.trim();
+    if (!name) {
+      this.tokenError.set('Dê um nome ao token.');
+      return;
+    }
+    this.finance.createToken(name).subscribe({
+      next: (t) => {
+        this.newToken.set(t.token);
+        this.tokenName.reset();
+      },
+      error: (e) => this.tokenError.set(apiMessage(e, 'Não foi possível criar o token.')),
+    });
+  }
+
+  protected copyToken(value: string): void {
+    void navigator.clipboard?.writeText(value).then(() => this.copied.set(true));
+  }
+
+  protected revokeToken(id: string): void {
+    this.finance.revokeToken(id).subscribe({
+      next: () => this.deleting.set(null),
+      error: (e) => this.tokenError.set(apiMessage(e, 'Não foi possível revogar.')),
     });
   }
 

@@ -2,9 +2,9 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { Observable, tap } from 'rxjs';
 import {
-  Account, AppNotification, CalendarEvent, CardDetail, Category, CreditCard, Dashboard, Debt, DebtList,
+  Account, ApiTokenInfo, AppNotification, CalendarEvent, CardDetail, Category, CreditCard, Dashboard, Debt, DebtList,
   DebtSimulation, DebtStrategy, Installment, Invoice, InvoiceDetail, Kind, Planning, Purchase,
-  PurchaseAdvice, Recovery, RecoveryImpact, UntilSalary, WishlistData, WishlistItem, Recurrence, Transaction, TransactionPage, Transfer,
+  PurchaseAdvice, Recovery, RecoveryImpact, Report, ReportPeriod, UntilSalary, WishlistData, WishlistItem, Recurrence, Transaction, TransactionPage, Transfer,
 } from './models';
 
 export interface TransactionFilters {
@@ -300,6 +300,26 @@ export class FinanceService {
 
   canBuy(body: object): Observable<PurchaseAdvice> {
     return this.http.post<PurchaseAdvice>('/api/wishlist/can-buy', body);
+  }
+
+  report(period: ReportPeriod, month: string): Observable<Report> {
+    return this.http.get<Report>('/api/reports', { params: { period, month } });
+  }
+
+  restoreBackup(payload: unknown): Observable<unknown> {
+    return this.changed(this.http.post('/api/backup/restore', payload));
+  }
+
+  tokens(): Observable<ApiTokenInfo[]> {
+    return this.http.get<ApiTokenInfo[]>('/api/tokens');
+  }
+
+  createToken(name: string): Observable<{ id: string; name: string; token: string }> {
+    return this.changed(this.http.post<{ id: string; name: string; token: string }>('/api/tokens', { name }));
+  }
+
+  revokeToken(id: string): Observable<unknown> {
+    return this.changed(this.http.delete(`/api/tokens/${id}`));
   }
 
   installments(month: string): Observable<{ items: Installment[]; total: string }> {
