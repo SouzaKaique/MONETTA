@@ -108,5 +108,7 @@ def test_rejeita_email_nao_verificado(client, fake_provider):
 
 
 def test_apple_sem_credenciais_fica_desligado(client):
-    assert client.get("/api/auth/providers").json == {"google": True, "apple": False}
+    assert client.get("/api/auth/providers").json == {
+        "google": True, "apple": False, "registration": True,
+    }
     assert client.get("/api/auth/apple/start").status_code == 404

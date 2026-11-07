@@ -12,6 +12,7 @@ const SOCIAL_ERRORS: Record<string, string> = {
   token_invalido: 'Não foi possível confirmar sua identidade. Tente novamente.',
   email_nao_verificado: 'Sua conta no provedor não tem um e-mail verificado.',
   conta_existente: 'Já existe uma conta com este e-mail. Entre com sua senha.',
+  cadastro_fechado: 'O cadastro de novas contas está fechado.',
 };
 
 @Component({
@@ -55,7 +56,7 @@ export class AuthPage implements OnInit {
     }
     this.auth.providers().subscribe({
       next: (p) => this.providers.set(p),
-      error: () => this.providers.set({ google: false, apple: false }),
+      error: () => this.providers.set({ google: false, apple: false, registration: false }),
     });
   }
 

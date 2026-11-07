@@ -5,7 +5,7 @@ Registre despesas pelo app **Atalhos** do iOS, sem abrir o MONETTA.
 ## Antes de começar
 
 O iPhone precisa alcançar o servidor por um endereço com HTTPS. Com o app rodando só no
-computador (`localhost`), o atalho não funciona. Veja **Publicar em produção** no [README](../README.md).
+computador (`localhost`), o atalho não funciona. Veja o [guia de publicação](PUBLICACAO.md).
 
 ## 1. Criar o token
 

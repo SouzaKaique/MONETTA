@@ -210,9 +210,21 @@ a partir dos módulos, por isso não existe tabela `financial_events`: uma cópi
   `theme-init.js` e o `inlineCritical` do Angular está desligado: ele usa `onload` no HTML.
 - **Cabeçalhos:** `nosniff`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` e HSTS em HTTPS.
 - **Limites:** login 20 e cadastro 10 por minuto por endereço, além do bloqueio por conta.
-  Ficam em memória, então valem para um processo. Atrás de proxy, é preciso repassar o IP real.
+  Ficam em memória, então valem para um processo e zeram ao reiniciar.
 - **CSRF e CORS:** header exigido nas escritas da sessão; a API não libera outras origens. A rota
   de integrações dispensa o header porque não usa cookie.
+
+## Publicação
+
+- **Pacote:** Docker Compose com app, PostgreSQL, backup diário e uma entrada à escolha:
+  Caddy, com certificado automático, ou túnel da Cloudflare.
+- **Redes:** o banco fica em uma rede sem saída para a internet. Só a entrada publica portas.
+- **Imagem:** sem segredos, sem testes, com usuário sem privilégios e disco somente leitura.
+- **IP real:** `TRUSTED_PROXY` autoriza o servidor a ler `X-Forwarded-For`. Sem ele, o cabeçalho é
+  ignorado, porque qualquer cliente poderia falsificá-lo para escapar dos limites.
+- **Início seguro:** com `APP_ENV=production`, o servidor recusa subir sem HTTPS ou com segredo fraco.
+- **Cadastro:** com `REGISTRATION_OPEN=0`, só a primeira conta é aceita, inclusive por login social.
+- **Versões:** `requirements.lock` e `package-lock.json` fixam as dependências da imagem.
 
 ## Identidade visual
 

@@ -1,12 +1,15 @@
 from decimal import Decimal
 from pathlib import Path
 
+import re
+
 from flask import Flask, abort, jsonify, request, send_from_directory
 from flask.json.provider import DefaultJSONProvider
 from marshmallow import ValidationError
 from werkzeug.exceptions import HTTPException
 
 from .api import register_blueprints
+from .cli import register_commands
 from .config import Config
 from .extensions import db, migrate
 from .services.ratelimit import RateLimiter
@@ -21,6 +24,9 @@ HTTP_MESSAGES = {
     413: "O arquivo é grande demais.",
 }
 FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend" / "dist" / "frontend" / "browser"
+# O nome muda a cada versão, então o arquivo nunca envelhece no cache.
+HASHED_ASSET = re.compile(r"-[A-Z0-9]{8}\.\w+$")
+ONE_YEAR = 31536000
 # Imagens externas da wishlist exigem https:. Sem scripts inline nem de terceiros.
 CONTENT_POLICY = (
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
@@ -53,6 +59,7 @@ def create_app(config: type = Config) -> Flask:
     from . import models  # noqa: F401  (registra as tabelas para o Alembic)
 
     register_blueprints(app)
+    register_commands(app)
 
     @app.before_request
     def require_client_header():
@@ -96,7 +103,12 @@ def create_app(config: type = Config) -> Flask:
             target = FRONTEND_DIR / path
             if not target.resolve().is_relative_to(FRONTEND_DIR) or not target.is_file():
                 path = "index.html"  # rota do Angular
-            return send_from_directory(FRONTEND_DIR, path)
+            response = send_from_directory(FRONTEND_DIR, path)
+            if HASHED_ASSET.search(path):
+                response.headers["Cache-Control"] = f"public, max-age={ONE_YEAR}, immutable"
+            else:
+                response.headers["Cache-Control"] = "no-cache"
+            return response
 
     @app.errorhandler(ValidationError)
     def validation_error(exc: ValidationError):

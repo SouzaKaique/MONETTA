@@ -26,6 +26,7 @@ export interface User {
 export interface Providers {
   google: boolean;
   apple: boolean;
+  registration: boolean;
 }
 
 /** Valores monetários chegam como string decimal; `null` significa "ainda não disponível". */

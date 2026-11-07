@@ -8,7 +8,7 @@ from ..extensions import db
 from ..models import User
 from ..models.common import utcnow
 from ..services import oauth, ratelimit
-from ..services.accounts import create_user
+from ..services.accounts import create_user, registration_open
 from ..services.security import (
     end_session_cookie, hash_password, revoke_all_sessions,
     session_from_request, start_session, verify_password,
@@ -37,13 +37,16 @@ class LoginSchema(Schema):
 
 @bp.get("/providers")
 def providers():
-    return jsonify({name: oauth.is_enabled(name) for name in oauth.PROVIDERS})
+    enabled = {name: oauth.is_enabled(name) for name in oauth.PROVIDERS}
+    return jsonify(enabled | {"registration": registration_open()})
 
 
 @bp.post("/register")
 def register():
     if not ratelimit.allow(f"register:{request.remote_addr}", REGISTER_PER_MINUTE):
         return error("Muitas tentativas. Aguarde um minuto.", 429)
+    if not registration_open():
+        return error("O cadastro de novas contas está fechado.", 403)
     data = load_body(RegisterSchema())
     email = data["email"].strip().lower()
     if db.session.scalar(db.select(User.id).filter_by(email=email)):

@@ -1,4 +1,7 @@
 """Criação de usuários e dados iniciais de cada conta."""
+import sqlalchemy as sa
+from flask import current_app
+
 from ..extensions import db
 from ..models import AppSettings, Category, User
 
@@ -13,6 +16,13 @@ DEFAULT_INCOME_CATEGORIES = [
     ("Salário", "wallet2"), ("Freelance", "laptop"), ("Vendas", "shop"),
     ("Comissões", "percent"), ("Presentes", "gift"), ("Outras entradas", "plus-circle"),
 ]
+
+
+def registration_open() -> bool:
+    """Com o cadastro fechado, a primeira conta ainda passa: é a do dono do servidor."""
+    if current_app.config["REGISTRATION_OPEN"]:
+        return True
+    return db.session.scalar(sa.select(sa.func.count()).select_from(User)) == 0
 
 
 def create_user(
