@@ -96,9 +96,9 @@ def test_mes_passado_nao_tem_disponivel_e_futuro_nao_tem_saldo(client, user):
     assert get(client, "2026-04")["summary"]["balance"] is None
 
 
-def test_modulos_futuros_nao_fingem_zero(client, user):
+def test_sem_metas_nao_ha_valor_guardado(client, user):
     s = get(client)["summary"]
-    assert s["saved_total"] is None and s["reserves"] is None
+    assert s["saved_total"] == "0.00" and s["reserves"] == "0.00"
 
 
 def test_comprometimento_e_alerta(client, user):

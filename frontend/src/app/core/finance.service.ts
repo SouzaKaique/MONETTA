@@ -4,7 +4,7 @@ import { Observable, tap } from 'rxjs';
 import {
   Account, AppNotification, CalendarEvent, CardDetail, Category, CreditCard, Dashboard, Debt, DebtList,
   DebtSimulation, DebtStrategy, Installment, Invoice, InvoiceDetail, Kind, Planning, Purchase,
-  Recovery, RecoveryImpact, UntilSalary, Recurrence, Transaction, TransactionPage, Transfer,
+  PurchaseAdvice, Recovery, RecoveryImpact, UntilSalary, WishlistData, WishlistItem, Recurrence, Transaction, TransactionPage, Transfer,
 } from './models';
 
 export interface TransactionFilters {
@@ -253,6 +253,53 @@ export class FinanceService {
 
   readAllNotifications(): Observable<unknown> {
     return this.changed(this.http.post('/api/notifications/read-all', {}));
+  }
+
+  wishlist(): Observable<WishlistData> {
+    return this.http.get<WishlistData>('/api/wishlist');
+  }
+
+  saveWishlistItem(body: object, id?: string): Observable<WishlistItem> {
+    return this.changed(
+      id ? this.http.patch<WishlistItem>(`/api/wishlist/${id}`, body)
+         : this.http.post<WishlistItem>('/api/wishlist', body),
+    );
+  }
+
+  deleteWishlistItem(id: string): Observable<unknown> {
+    return this.changed(this.http.delete(`/api/wishlist/${id}`));
+  }
+
+  uploadWishlistImage(id: string, file: File): Observable<WishlistItem> {
+    const data = new FormData();
+    data.append('image', file);
+    return this.changed(this.http.post<WishlistItem>(`/api/wishlist/${id}/image`, data));
+  }
+
+  contribute(id: string, body: object, idempotencyKey: string): Observable<WishlistItem> {
+    return this.changed(this.http.post<WishlistItem>(`/api/wishlist/${id}/contributions`, body, {
+      headers: { 'Idempotency-Key': idempotencyKey },
+    }));
+  }
+
+  deleteContribution(id: string): Observable<unknown> {
+    return this.changed(this.http.delete(`/api/goal-contributions/${id}`));
+  }
+
+  buyWishlistItem(id: string, body: object): Observable<WishlistItem> {
+    return this.changed(this.http.post<WishlistItem>(`/api/wishlist/${id}/buy`, body));
+  }
+
+  giveUpWishlistItem(id: string): Observable<WishlistItem> {
+    return this.changed(this.http.post<WishlistItem>(`/api/wishlist/${id}/give-up`, {}));
+  }
+
+  reopenWishlistItem(id: string): Observable<WishlistItem> {
+    return this.changed(this.http.post<WishlistItem>(`/api/wishlist/${id}/reopen`, {}));
+  }
+
+  canBuy(body: object): Observable<PurchaseAdvice> {
+    return this.http.post<PurchaseAdvice>('/api/wishlist/can-buy', body);
   }
 
   installments(month: string): Observable<{ items: Installment[]; total: string }> {

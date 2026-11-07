@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 from ..extensions import db
 from ..models import Account, AppSettings, Category, Recurrence, Transaction
-from . import alerts, cards, debts, recovery, spending
+from . import alerts, cards, debts, recovery, spending, wishlist
 from .balances import ZERO, total_balance
 from .periods import month_bounds, shift_month, today_for
 from .recurrences import generate, generation_horizon
@@ -124,6 +124,7 @@ def build_dashboard(
     debt_paid = debts.paid_between(user_id, start, end)
     debt_due = recovery.debt_due(user_id, start, end) if not is_past else ZERO
     committed = expenses_total + debt_paid + debt_due
+    contributed = wishlist.contributed_between(user_id, start, end)
     commitment = round(committed / income_expected * 100) if income_expected > 0 else None
 
     balance = total_balance(user_id, end if is_past else today) if start <= today else None
@@ -143,7 +144,7 @@ def build_dashboard(
         "expenses_variable": expenses_total - expenses_fixed - card_commitment,
         "income_commitment_pct": commitment,
         # Dinheiro livre do mês por competência: não é saldo em conta.
-        "free_money": income_expected - committed,
+        "free_money": income_expected - committed - contributed,
         "safety_minimum": safety,
         "overdue_expenses": ZERO,
         # Só faz sentido no mês corrente e nunca conta receita futura.
@@ -155,9 +156,8 @@ def build_dashboard(
         "debt_payments": debt_paid,
         "debt_due": debt_due,
         "pending_debts": debts.total_balance(user_id),
-        # Dependem de módulos das próximas etapas.
-        "reserves": None,
-        "saved_total": None,
+        "reserves": contributed,
+        "saved_total": wishlist.saved_total(user_id),
     }
     if is_current:
         # Obrigações do mês: lançamentos pendentes e o que falta das faturas, sem sobreposição.
@@ -172,7 +172,9 @@ def build_dashboard(
         # Com salário cadastrado, vale o mesmo número do simulador: nunca dois "disponíveis".
         until = spending.until_salary(user_id, settings, today)
         summary["available_to_spend"] = until["available"] if until["has_salary"] else max(
-            ZERO, balance - open_until_month_end - settings.planned_reserve - safety
+            ZERO,
+            balance - open_until_month_end - safety - wishlist.saved_total(user_id)
+            - max(ZERO, settings.planned_reserve - contributed),
         )
 
     has_accounts = db.session.scalar(

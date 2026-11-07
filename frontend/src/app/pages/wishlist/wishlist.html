@@ -1,0 +1,226 @@
+<header class="page-head">
+  <div>
+    <h1 class="page-title">Wishlist</h1>
+    <p class="muted mb-0">O que você quer comprar, com planejamento.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-quiet" (click)="checkingOpen.set(true)">Posso comprar?</button>
+    <button type="button" class="btn btn-brand" (click)="creating.set(true)">
+      <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Item
+    </button>
+  </div>
+</header>
+
+@if (error()) {
+  <div class="notice notice-critical mt-3" role="alert">
+    <i class="bi bi-exclamation-circle" aria-hidden="true"></i><span>{{ error() }}</span>
+  </div>
+}
+
+@if (data(); as d) {
+  <section class="stat-grid" aria-label="Indicadores da wishlist">
+    <article class="card-m stat"><h2>Valor total</h2><p class="money">{{ money(d.indicators.total_value) }}</p></article>
+    <article class="card-m stat"><h2>Total economizado</h2><p class="money">{{ money(d.indicators.total_saved) }}</p></article>
+    <article class="card-m stat"><h2>Itens</h2><p>{{ d.indicators.count }}</p></article>
+    <article class="card-m stat"><h2>Objetivos concluídos</h2><p>{{ d.indicators.completed }}</p></article>
+    <article class="card-m stat">
+      <h2>Próxima compra</h2>
+      <p class="next">{{ d.indicators.next_purchase ?? '—' }}</p>
+    </article>
+  </section>
+
+  <div class="segmented tabs mt-3" role="tablist">
+    @for (f of filters; track f.value) {
+      <button type="button" role="tab" [class.active]="filter() === f.value"
+              [attr.aria-selected]="filter() === f.value" (click)="filter.set(f.value)">{{ f.label }}</button>
+    }
+  </div>
+
+  @if (!shown().length) {
+    <div class="card-m mt-3">
+      <p class="muted mb-0">
+        {{ filter() === 'open' ? 'Adicione o que você quer comprar e crie uma meta para cada item.' : 'Nenhum item aqui.' }}
+      </p>
+    </div>
+  }
+
+  <section class="items">
+    @for (item of shown(); track item.id) {
+      <article class="item">
+        <div class="thumb">
+          @if (image(item); as src) {
+            <img [src]="src" [alt]="item.name" referrerpolicy="no-referrer" loading="lazy" (error)="imageFailed(item)" />
+          } @else {
+            <i class="bi bi-bag" aria-hidden="true"></i>
+          }
+        </div>
+        <div class="body">
+          <div class="title-row">
+            <h3>{{ item.name }}</h3>
+            <span class="money price">{{ money(item.price) }}</span>
+          </div>
+          <div class="tags">
+            <span class="tag" [class.tag-ok]="item.status === 'bought'" [class.tag-pending]="item.status === 'saving'">
+              {{ statusLabel[item.status] }}
+            </span>
+            <span class="tag">Prioridade {{ priorityLabel[item.priority].toLowerCase() }}</span>
+            @if (item.category_name) { <span class="tag">{{ item.category_name }}</span> }
+            @if (item.reached && item.status !== 'bought') { <span class="tag tag-ok">Meta atingida</span> }
+          </div>
+
+          @if (item.status !== 'bought') {
+            <div class="progress-row">
+              <span class="money">{{ money(item.saved) }} de {{ money(item.target_amount) }}</span>
+              <span class="money">{{ item.pct }}%</span>
+            </div>
+            <div class="bar" role="meter" aria-label="Progresso da meta"
+                 [attr.aria-valuenow]="item.pct" aria-valuemin="0" aria-valuemax="100">
+              <span [style.width.%]="item.pct"></span>
+            </div>
+          }
+
+          <p class="meta">
+            @if (item.status === 'bought') {
+              Comprado em {{ date(item.bought_on) }}
+            } @else if (item.status === 'given_up') {
+              Você desistiu deste item.
+            } @else if (item.reached) {
+              Você pode comprar pela meta.
+            } @else if (item.forecast.month) {
+              Previsão: {{ monthLabel(item.forecast.month) }}
+            } @else {
+              Defina quanto guardar por mês para ver a previsão.
+            }
+            @if (item.store_url) {
+              · <a [href]="item.store_url" target="_blank" rel="noopener noreferrer nofollow">Ver na loja</a>
+            }
+          </p>
+          @if (item.notes) { <p class="meta">{{ item.notes }}</p> }
+
+          <div class="actions">
+            @if (item.status === 'given_up') {
+              <button type="button" class="btn btn-quiet btn-sm" (click)="reopen(item)">Reabrir</button>
+            } @else if (item.status === 'bought') {
+              @if (deleting() === 'undo:' + item.id) {
+                <button type="button" class="btn btn-sm btn-danger-quiet" (click)="reopen(item)">Remover a despesa e reabrir?</button>
+              } @else {
+                <button type="button" class="btn btn-quiet btn-sm" (click)="deleting.set('undo:' + item.id)">Desfazer compra</button>
+              }
+            } @else {
+              <button type="button" class="btn btn-quiet btn-sm" (click)="openSave(item)">Guardar</button>
+              <button type="button" class="btn btn-quiet btn-sm" (click)="checking.set(item)">Posso comprar?</button>
+              <button type="button" class="btn btn-quiet btn-sm" (click)="openBuy(item)">Comprei</button>
+              <button type="button" class="btn btn-quiet btn-sm" (click)="giveUp(item)">Desisti</button>
+            }
+            <button type="button" class="icon-btn" title="Editar" aria-label="Editar" (click)="editing.set(item)">
+              <i class="bi bi-pencil" aria-hidden="true"></i>
+            </button>
+            @if (item.contributions.length) {
+              <button type="button" class="icon-btn" title="Histórico" aria-label="Histórico de valores"
+                      [attr.aria-expanded]="history() === item.id"
+                      (click)="history.set(history() === item.id ? null : item.id)">
+                <i class="bi bi-clock-history" aria-hidden="true"></i>
+              </button>
+            } @else {
+              @if (deleting() === item.id) {
+                <button type="button" class="btn btn-sm btn-danger-quiet" (click)="remove(item)">Excluir?</button>
+              } @else {
+                <button type="button" class="icon-btn" title="Excluir" aria-label="Excluir" (click)="deleting.set(item.id)">
+                  <i class="bi bi-trash3" aria-hidden="true"></i>
+                </button>
+              }
+            }
+          </div>
+
+          @if (history() === item.id) {
+            <ul class="rows history fade-up">
+              @for (c of item.contributions; track c.id) {
+                <li class="row-item">
+                  <div class="row-main">
+                    <span>{{ c.amount.startsWith('-') ? 'Retirado' : 'Guardado' }}</span>
+                    <span class="row-meta">{{ date(c.date) }}</span>
+                  </div>
+                  <span class="row-amount money">{{ money(abs(c.amount)) }}</span>
+                  <div class="row-actions">
+                    @if (deleting() === c.id) {
+                      <button type="button" class="btn btn-sm btn-danger-quiet" (click)="removeContribution(c.id)">Remover?</button>
+                    } @else {
+                      <button type="button" class="icon-btn" title="Remover" aria-label="Remover" (click)="deleting.set(c.id)">
+                        <i class="bi bi-trash3" aria-hidden="true"></i>
+                      </button>
+                    }
+                  </div>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      </article>
+    }
+  </section>
+}
+
+@if (creating()) { <app-wishlist-item-form (closed)="creating.set(false)" /> }
+@if (editing(); as item) { <app-wishlist-item-form [item]="item" (closed)="editing.set(null)" /> }
+@if (checkingOpen()) { <app-can-buy (closed)="checkingOpen.set(false)" /> }
+@if (checking(); as item) { <app-can-buy [item]="item" (closed)="checking.set(null)" /> }
+
+@if (saving(); as item) {
+  <app-dialog #saveBox [heading]="item.name" (closed)="saving.set(null)">
+    <p class="subtle">O dinheiro continua na sua conta. Ele só deixa de contar como disponível até você comprar ou desistir.</p>
+    <form [formGroup]="saveForm" (ngSubmit)="submitSave(saveBox)" novalidate>
+      <div class="segmented mb-3" role="group" aria-label="Operação">
+        <button type="button" [class.active]="saveForm.controls.kind.value === 'deposit'"
+                (click)="saveForm.controls.kind.setValue('deposit')">Guardar</button>
+        <button type="button" [class.active]="saveForm.controls.kind.value === 'withdraw'"
+                (click)="saveForm.controls.kind.setValue('withdraw')">Retirar</button>
+      </div>
+      <div class="grid-2 mb-3">
+        <div>
+          <label class="form-label" for="sv-amount">Valor</label>
+          <input id="sv-amount" class="form-control money" formControlName="amount" inputmode="decimal" autocomplete="off" />
+        </div>
+        <div>
+          <label class="form-label" for="sv-date">Data</label>
+          <input id="sv-date" class="form-control" type="date" formControlName="contributed_on" [max]="today" />
+        </div>
+      </div>
+      @if (formError()) { <p class="field-error mb-2" role="alert">{{ formError() }}</p> }
+      <button type="submit" class="btn btn-brand w-100" [disabled]="busy()">Salvar</button>
+    </form>
+  </app-dialog>
+}
+
+@if (buying(); as item) {
+  <app-dialog #buyBox [heading]="'Comprei: ' + item.name" (closed)="buying.set(null)">
+    <p class="subtle">Registra a despesa uma única vez e libera o valor guardado para este item.</p>
+    <form [formGroup]="buyForm" (ngSubmit)="submitBuy(buyBox)" novalidate>
+      <div class="grid-2 mb-3">
+        <div>
+          <label class="form-label" for="by-amount">Valor pago</label>
+          <input id="by-amount" class="form-control money" formControlName="amount" inputmode="decimal" autocomplete="off" />
+        </div>
+        <div>
+          <label class="form-label" for="by-date">Data</label>
+          <input id="by-date" class="form-control" type="date" formControlName="bought_on" [max]="today" />
+        </div>
+        <div>
+          <label class="form-label" for="by-source">Pagamento</label>
+          <select id="by-source" class="form-select" formControlName="source">
+            <option value="">Escolha</option>
+            @for (a of accounts(); track a.id) { <option [value]="'account:' + a.id">{{ a.name }}</option> }
+            @for (c of cards(); track c.id) { <option [value]="'card:' + c.id">Cartão {{ c.name }}</option> }
+          </select>
+        </div>
+        @if (buyForm.controls.source.value.startsWith('card:')) {
+          <div>
+            <label class="form-label" for="by-installments">Parcelas</label>
+            <input id="by-installments" class="form-control" type="number" min="1" max="48" formControlName="installments" />
+          </div>
+        }
+      </div>
+      @if (formError()) { <p class="field-error mb-2" role="alert">{{ formError() }}</p> }
+      <button type="submit" class="btn btn-brand w-100" [disabled]="busy()">Registrar compra</button>
+    </form>
+  </app-dialog>
+}

@@ -52,7 +52,7 @@ export class DashboardPage {
       { label: 'Gastos no cartão', value: s.card_commitment, hint: 'Parcelas que vencem no mês' },
       { label: 'Faturas em aberto', value: s.open_invoices, hint: 'Falta pagar neste mês' },
       { label: 'Dívidas pendentes', value: s.pending_debts, hint: `${formatMoney(s.debt_payments)} pagos neste mês` },
-      { label: 'Valor economizado', value: s.saved_total, hint: 'Disponível na Etapa 6' },
+      { label: 'Valor economizado', value: s.saved_total, hint: 'Guardado para a wishlist' },
     ];
   });
 

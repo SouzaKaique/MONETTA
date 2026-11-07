@@ -6,10 +6,12 @@ from .finance import (
 )
 from .planning import Budget, Notification, RecoveryPlan
 from .user import OAuthState, User, UserIdentity, UserSession
+from .wishlist import GoalContribution, SavingsGoal, WishlistImage, WishlistItem
 
 __all__ = [
     "Account", "AppSettings", "Budget", "CardPurchase", "Category", "CreditCard", "Debt",
-    "DebtPayment", "Installment", "Invoice", "InvoicePayment", "Notification", "OAuthState",
-    "Recurrence", "RecurrenceAmount", "RecurrenceSkip", "RecoveryPlan", "Transaction",
-    "Transfer", "User", "UserIdentity", "UserSession",
+    "DebtPayment", "GoalContribution", "Installment", "Invoice", "InvoicePayment", "Notification",
+    "OAuthState", "Recurrence", "RecurrenceAmount", "RecurrenceSkip", "RecoveryPlan",
+    "SavingsGoal", "Transaction", "Transfer", "User", "UserIdentity", "UserSession",
+    "WishlistImage", "WishlistItem",
 ]

@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 from ..extensions import db
 from ..models import AppSettings, CreditCard, Installment, Invoice, InvoicePayment, Transaction
-from . import recovery
+from . import recovery, wishlist
 from .balances import ZERO, total_balance
 from .periods import month_bounds
 
@@ -84,8 +84,13 @@ def until_salary(user_id: UUID, settings: AppSettings, today: date, spend: Decim
     due = recovery.debt_due(user_id, start, end)
     if due > 0:
         commitments.append({"kind": "debt", "label": "Pagamentos de dívidas", "date": None, "amount": due})
-    if settings.planned_reserve > 0:
-        commitments.append({"kind": "reserve", "label": "Reserva", "date": None, "amount": settings.planned_reserve})
+    # O que já foi guardado no mês abate da reserva planejada, para não descontar duas vezes.
+    reserve = max(ZERO, settings.planned_reserve - wishlist.contributed_between(user_id, start, end))
+    if reserve > 0:
+        commitments.append({"kind": "reserve", "label": "Reserva", "date": None, "amount": reserve})
+    saved = wishlist.saved_total(user_id)
+    if saved > 0:
+        commitments.append({"kind": "saved", "label": "Guardado na wishlist", "date": None, "amount": saved})
 
     committed = sum((c["amount"] for c in commitments), ZERO)
     safety = recovery.effective_safety(user_id, settings)

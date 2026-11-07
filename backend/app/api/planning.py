@@ -9,7 +9,8 @@ from marshmallow import Schema, ValidationError, fields, validate
 from ..extensions import db
 from ..models import Budget, Category, Notification, RecoveryPlan
 from ..models.common import utcnow
-from ..services import alerts, budgets, calendar, debts, recovery, spending
+from ..services import alerts, budgets, calendar, debts, recovery, spending, wishlist
+from ..services.balances import ZERO
 from ..services.dashboard import build_dashboard, monthly_capacity
 from ..services.periods import month_bounds, parse_month
 from ..services.recurrences import generate, generation_horizon
@@ -64,8 +65,15 @@ def planning():
 
     essential, other = budgets.essential_split(g.user.id, start, end)
     debts_total = s["debt_payments"] + s["debt_due"]
-    reserve = settings.planned_reserve
-    free = s["income_expected"] - essential - other - s["card_commitment"] - debts_total - reserve
+    # No Modo Recuperação a wishlist perde o orçamento: conta só o que já foi guardado.
+    wishlist_month = s["reserves"]
+    if not data["recovery_active"]:
+        wishlist_month = max(wishlist_month, wishlist.planned_monthly(g.user.id))
+    reserve = max(ZERO, settings.planned_reserve - s["reserves"])
+    free = (
+        s["income_expected"] - essential - other - s["card_commitment"] - debts_total
+        - reserve - wishlist_month
+    )
     now = today()
     until = spending.until_salary(g.user.id, settings, now) if data["is_current_month"] else None
     return jsonify({
@@ -77,7 +85,8 @@ def planning():
         "card_commitment": s["card_commitment"],
         "expenses_pending": s["expenses_pending"],
         "future_commitments": spending.future_commitments(g.user.id, end),
-        "reserved": reserve,
+        "reserved": settings.planned_reserve,
+        "saved_total": s["saved_total"],
         "projected_balance": s["projected_balance"],
         "available": until["available"] if until and until["has_salary"] else s["available_to_spend"],
         "commitment_pct": s["income_commitment_pct"],
@@ -87,7 +96,7 @@ def planning():
             {"key": "cards", "label": "Cartões", "amount": s["card_commitment"]},
             {"key": "debts", "label": "Dívidas", "amount": debts_total},
             {"key": "reserve", "label": "Reserva", "amount": reserve},
-            {"key": "wishlist", "label": "Wishlist", "amount": None},
+            {"key": "wishlist", "label": "Wishlist", "amount": wishlist_month},
             {"key": "free", "label": "Dinheiro livre", "amount": free},
         ],
         "budgets": budgets.status(g.user.id, year, month),

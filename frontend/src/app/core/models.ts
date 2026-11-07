@@ -59,8 +59,8 @@ export interface DashboardSummary {
   debt_payments: string;
   debt_due: string;
   pending_debts: string;
-  reserves: Money;
-  saved_total: Money;
+  reserves: string;
+  saved_total: string;
 }
 
 export interface HistoryPoint {
@@ -318,6 +318,7 @@ export interface Planning {
   card_commitment: string;
   future_commitments: string;
   reserved: string;
+  saved_total: string;
   projected_balance: Money;
   available: Money;
   commitment_pct: number | null;
@@ -388,6 +389,53 @@ export interface AppNotification {
   link: string | null;
   created_at: string;
   read: boolean;
+}
+
+export type WishlistStatus = 'desired' | 'planning' | 'saving' | 'bought' | 'given_up';
+
+export interface WishlistItem {
+  id: string;
+  name: string;
+  price: string;
+  status: WishlistStatus;
+  priority: number;
+  store_url: string | null;
+  image_url: string | null;
+  has_upload: boolean;
+  category_id: string | null;
+  category_name: string | null;
+  added_on: string;
+  notes: string | null;
+  bought_on: string | null;
+  saved: string;
+  target_amount: string;
+  remaining: string;
+  pct: number;
+  reached: boolean;
+  monthly_amount: Money;
+  target_date: string | null;
+  forecast: { months: number | null; month: string | null };
+  contributions: { id: string; amount: string; date: string; notes: string | null }[];
+}
+
+export interface WishlistData {
+  items: WishlistItem[];
+  indicators: {
+    total_value: string;
+    total_saved: string;
+    count: number;
+    completed: number;
+    next_purchase: string | null;
+  };
+}
+
+export interface PurchaseAdvice {
+  verdict: 'buy' | 'attention' | 'postpone';
+  message: string;
+  amount: string;
+  saved: string;
+  need: string;
+  checks: { label: string; status: 'ok' | 'warning' | 'bad'; detail: string }[];
 }
 
 export interface Transfer {

@@ -7,7 +7,7 @@ from sqlalchemy.orm import joinedload
 
 from ..extensions import db
 from ..models import Debt, DebtPayment, Invoice, Transaction
-from . import cards, debts, recovery
+from . import cards, debts, recovery, wishlist
 from .periods import month_bounds
 
 
@@ -80,14 +80,21 @@ def _debts(user_id: UUID, start: date, end: date) -> list[dict]:
 
 
 def _goals(user_id: UUID, start: date, end: date) -> list[dict]:
+    events = [{
+        "id": f"goal:{item.goal.id}", "type": "goal", "date": item.goal.target_date.isoformat(),
+        "title": f"Meta: {item.name}", "amount": item.goal.target_amount,
+        "status": "done" if item.status == "bought" else "pending", "link": "/wishlist",
+    } for item in wishlist.user_items(user_id)
+        if item.goal.target_date and start <= item.goal.target_date <= end
+        and item.status != "given_up"]
     plan = recovery.plan_for(user_id)
     if plan and plan.active and plan.target_date and start <= plan.target_date <= end:
-        return [{
+        events.append({
             "id": f"goal:{plan.id}", "type": "goal", "date": plan.target_date.isoformat(),
             "title": "Meta do Modo Recuperação", "amount": None, "status": "pending",
             "link": "/recuperacao",
-        }]
-    return []
+        })
+    return events
 
 
 def month_events(user_id: UUID, year: int, month: int, today: date) -> list[dict]:

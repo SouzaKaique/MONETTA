@@ -81,6 +81,14 @@ def remove_empty_invoices(card_id: UUID) -> None:
     ))
 
 
+def has_paid_invoice(purchase: CardPurchase) -> bool:
+    return bool(db.session.scalar(sa.select(sa.exists().where(
+        InvoicePayment.invoice_id.in_(
+            sa.select(Installment.invoice_id).where(Installment.purchase_id == purchase.id)
+        )
+    ))))
+
+
 def invoice_total(invoice: Invoice) -> Decimal:
     return sum((i.amount for i in invoice.installments), ZERO)
 

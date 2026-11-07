@@ -1,9 +1,15 @@
-"""Datas: hoje no fuso do usuário e aritmética de meses."""
+"""Datas e formatação: hoje no fuso do usuário, aritmética de meses e reais."""
 from calendar import monthrange
 from datetime import date, datetime
+from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from ..models import AppSettings
+
+
+def format_brl(value: Decimal) -> str:
+    text = f"{value:,.2f}".replace(",", "#").replace(".", ",").replace("#", ".")
+    return f"R$ {text}"
 
 
 def today_for(settings: AppSettings) -> date:

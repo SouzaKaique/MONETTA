@@ -39,6 +39,7 @@
       <div><dt>Parcelas de cartão</dt><dd class="money">{{ money(d.card_commitment) }}</dd></div>
       <div><dt>Próximos 3 meses</dt><dd class="money">{{ money(d.future_commitments) }}</dd></div>
       <div><dt>Valor reservado</dt><dd class="money">{{ money(d.reserved) }}</dd></div>
+      <div><dt>Guardado na wishlist</dt><dd class="money">{{ money(d.saved_total) }}</dd></div>
       <div><dt>Saldo projetado</dt><dd class="money">{{ money(d.projected_balance) }}</dd></div>
       <div><dt>Realmente disponível</dt><dd class="money">{{ money(d.available) }}</dd></div>
     </dl>
@@ -52,7 +53,7 @@
           <li>
             <div class="part-row">
               <span>{{ part.label }}</span>
-              <span class="money">{{ part.amount === null ? 'Etapa 6' : money(part.amount) }}</span>
+              <span class="money">{{ money(part.amount) }}</span>
             </div>
             <div class="bar" [class.over]="part.key === 'free' && +(part.amount ?? 0) < 0">
               <span [style.width.%]="partWidth(part.amount)"></span>

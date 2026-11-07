@@ -11,9 +11,9 @@ import sqlalchemy as sa
 
 from ..extensions import db
 from ..models import AppSettings, CardPurchase, Debt, RecoveryPlan
-from . import budgets, debts
+from . import budgets, debts, wishlist
 from .balances import ZERO
-from .periods import month_bounds, shift_month
+from .periods import format_brl, month_bounds, shift_month
 
 BASELINE_MONTHS = 3
 EVOLUTION_MONTHS = 6
@@ -188,6 +188,11 @@ def _recommendations(
         tips.append(
             f"Para terminar na data desejada, seriam necessários cerca de R$ {needed} por mês, "
             "sem contar juros."
+        )
+    planned = wishlist.planned_monthly(user_id)
+    if planned > 0 and current > 0:
+        tips.append(
+            f"Considere adiar a wishlist: {format_brl(planned)} por mês poderiam ir para as dívidas."
         )
     recent = _recent_installments(user_id, today)
     if recent:

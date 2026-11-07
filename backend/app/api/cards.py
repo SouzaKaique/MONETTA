@@ -330,12 +330,7 @@ def update_purchase(purchase_id):
 @login_required
 def delete_purchase(purchase_id):
     purchase = owned(CardPurchase, purchase_id)
-    paid = db.session.scalar(sa.select(sa.exists().where(
-        InvoicePayment.invoice_id.in_(
-            sa.select(Installment.invoice_id).where(Installment.purchase_id == purchase.id)
-        )
-    )))
-    if paid:
+    if service.has_paid_invoice(purchase):
         return error("Há pagamento em uma fatura desta compra. Remova o pagamento antes.", 409)
     card_id = purchase.card_id
     db.session.delete(purchase)

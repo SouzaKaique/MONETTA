@@ -72,7 +72,10 @@ export const routes: Routes = [
         path: 'notificacoes',
         loadComponent: () => import('./pages/notifications/notifications').then((m) => m.NotificationsPage),
       },
-      { path: 'wishlist', ...upcoming('Wishlist', 6, 'Metas de compra e a análise "Posso comprar?".') },
+      {
+        path: 'wishlist',
+        loadComponent: () => import('./pages/wishlist/wishlist').then((m) => m.WishlistPage),
+      },
       { path: 'relatorios', ...upcoming('Relatórios', 7, 'Gráficos por período e exportação em CSV.') },
     ],
   },

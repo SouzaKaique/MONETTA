@@ -8,9 +8,9 @@ from sqlalchemy.dialects.postgresql import insert
 
 from ..extensions import db
 from ..models import AppSettings, Notification
-from . import budgets, cards, debts, recovery, spending
+from . import budgets, cards, debts, recovery, spending, wishlist
 
-KINDS = ("budget", "card", "debt", "balance", "insight", "recovery")
+KINDS = ("budget", "card", "debt", "balance", "insight", "recovery", "wishlist")
 DEFAULT_PREFS = {"budget_pct": 80, "card_pct": 80, "commitment_pct": 80, "due_days": 3, "muted": []}
 CAN_PAY_MORE = Decimal("100.00")
 
@@ -67,12 +67,18 @@ def collect(
 
 def _achievements(user_id: UUID) -> list[dict]:
     """Conquistas ficam só nas notificações: no dashboard perderiam o sentido depois de um dia."""
-    return [
+    paid = [
         {"kind": "debt", "key": f"debt-paid:{debt.id}", "level": "info",
          "message": f"Você quitou a dívida {debt.name}.", "link": "/dividas"}
         for debt in debts.user_debts(user_id)
         if debts.balance_of(debt) <= 0 and debt.payments
     ]
+    goals = [
+        {"kind": "wishlist", "key": f"goal-reached:{item.goal.id}", "level": "info",
+         "message": f"Você atingiu a meta de {item.name}.", "link": "/wishlist"}
+        for item in wishlist.reached_goals(user_id)
+    ]
+    return paid + goals
 
 
 def sync(user_id: UUID, settings: AppSettings, alerts: list[dict]) -> None:

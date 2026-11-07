@@ -50,6 +50,7 @@ export class SettingsPage {
     { value: 'balance', label: 'Saldo e comprometimento' },
     { value: 'insight', label: 'Sugestões e variações de gastos' },
     { value: 'recovery', label: 'Modo Recuperação' },
+    { value: 'wishlist', label: 'Metas da wishlist' },
   ];
   protected readonly muted = signal<string[]>(this.auth.user()?.alert_prefs.muted ?? []);
   protected readonly alertsSaved = signal(false);

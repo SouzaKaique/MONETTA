@@ -73,11 +73,12 @@ serviço de envio de e-mail.
 **Etapa 5:** `budgets`, `recovery_plans`, `notifications`. Os eventos do calendário são calculados
 a partir dos módulos, por isso não existe tabela `financial_events`: uma cópia poderia divergir.
 
+**Etapa 6:** `wishlist_items`, `savings_goals`, `goal_contributions`, `wishlist_images`.
+
 **Nas próximas etapas, por migração:**
 
 | Etapa | Tabelas |
 |---|---|
-| 6 | `wishlist_items`, `savings_goals`, `goal_contributions` |
 
 ## Regras do saldo
 
@@ -144,7 +145,8 @@ a partir dos módulos, por isso não existe tabela `financial_events`: uma cópi
 - **Orçamento:** o limite vale a partir de um mês; meses anteriores não mudam. Zero remove o limite.
 - **Distribuição da renda:** essenciais e variáveis (lançamentos), cartões (parcelas), dívidas
   (pagas e combinadas), reserva e dinheiro livre. Cada valor aparece em um único grupo.
-- **Reserva mensal:** intenção de guardar. Reduz o disponível, mas não é despesa.
+- **Reserva mensal:** intenção de guardar. Reduz o disponível, mas não é despesa. O que for guardado
+  na wishlist no mês abate da reserva, para não descontar duas vezes.
 - **Calendário:** reúne lançamentos, fechamentos, vencimentos, dívidas e a meta do Modo Recuperação.
 
 ## Modo Recuperação
@@ -161,6 +163,23 @@ a partir dos módulos, por isso não existe tabela `financial_events`: uma cópi
 - Dashboard e notificações usam a mesma origem. O dashboard mostra a situação atual; a notificação
   guarda o histórico e cada chave é gerada uma única vez.
 - As preferências definem limites e silenciam grupos de avisos.
+
+## Wishlist
+
+- **Valor guardado:** não é despesa nem movimenta conta. O dinheiro continua no banco, e o saldo
+  calculado segue igual ao real; o valor apenas sai do disponível enquanto a meta estiver aberta.
+- **Comprei:** cria a despesa uma única vez, à vista ou em parcelas, e libera o guardado.
+- **Desisti:** libera o guardado e preserva o histórico.
+- **Desfazer compra:** remove a despesa criada e volta a separar o guardado. É recusado se houver
+  pagamento em fatura da compra, para não apagar dinheiro que já saiu da conta.
+- **Previsão:** usa o valor mensal definido ou, sem ele, a média guardada nos últimos 90 dias.
+- **Posso comprar?:** cada critério vira um item explicado, e o resultado é o pior deles. Considera
+  saldo, atrasos, comprometimento, limite do cartão, parcelas, dívidas, reserva e orçamento.
+  O guardado para o item conta a favor dele. Usar mais da metade do disponível pede atenção.
+- **Modo Recuperação:** pagar com dinheiro não guardado vira "melhor adiar", e o valor já guardado
+  pede atenção. A wishlist perde o orçamento planejado no mês. Nada é bloqueado.
+- **Imagens:** envio de PNG, JPEG ou WEBP de até 2 MB, validado pelo conteúdo e servido só ao dono;
+  ou endereço HTTPS externo. Links aceitam apenas HTTP e HTTPS.
 
 ## Identidade visual
 

@@ -249,7 +249,7 @@ def test_distribuicao_nao_soma_nada_duas_vezes(client, setup):
     parts = {d["key"]: d["amount"] for d in data["distribution"]}
     assert parts == {
         "essential": "1000.00", "variable": "200.00", "cards": "300.00", "debts": "500.00",
-        "reserve": "100.00", "wishlist": None, "free": "1900.00",
+        "reserve": "100.00", "wishlist": "0.00", "free": "1900.00",
     }
     assert data["income_expected"] == "4000.00" and data["income_received"] == "0.00"
 
