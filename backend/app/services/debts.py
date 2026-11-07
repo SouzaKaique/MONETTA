@@ -14,7 +14,6 @@ from .periods import shift_month
 STRATEGIES = ("snowball", "avalanche", "due_date", "priority", "custom")
 # Quantos pagamentos cabem em um mês, para somar o combinado às obrigações do mês.
 PAYMENTS_PER_MONTH = {"monthly": 1, "biweekly": 2, "weekly": 4}
-DUE_SOON_DAYS = 3
 MAX_SIMULATED_MONTHS = 600
 CENT = Decimal("0.01")
 
@@ -95,7 +94,7 @@ def due_in_month(user_id: UUID, start: date, end: date) -> Decimal:
     return total
 
 
-def debt_alerts(user_id: UUID, today: date) -> list[dict]:
+def debt_alerts(user_id: UUID, today: date, due_days: int = 3) -> list[dict]:
     alerts = []
     debts = user_debts(user_id)
     for debt in debts:
@@ -103,17 +102,25 @@ def debt_alerts(user_id: UUID, today: date) -> list[dict]:
             continue
         days = (debt.due_date - today).days
         if days < 0:
-            alerts.append({"level": "critical", "message": f"A dívida {debt.name} está vencida."})
-        elif days <= DUE_SOON_DAYS:
+            alerts.append({
+                "kind": "debt", "key": f"debt-late:{debt.id}", "level": "critical",
+                "message": f"A dívida {debt.name} está vencida.", "link": "/dividas",
+            })
+        elif days <= due_days:
             when = "hoje" if days == 0 else f"em {days} dia(s)"
-            alerts.append({"level": "warning", "message": f"A dívida {debt.name} vence {when}."})
+            alerts.append({
+                "kind": "debt", "key": f"debt-due:{debt.id}", "level": "warning",
+                "message": f"A dívida {debt.name} vence {when}.", "link": "/dividas",
+            })
 
     original = sum((d.original_amount for d in debts), ZERO)
     paid = sum((total_paid(d) for d in debts), ZERO)
     if paid > 0 and original > 0:
+        pct = min(100, round(paid / original * 100))
         alerts.append({
-            "level": "info",
-            "message": f"Você quitou {min(100, round(paid / original * 100))}% das suas dívidas.",
+            # Uma notificação a cada 10 pontos, para o progresso não virar ruído.
+            "kind": "debt", "key": f"debt-progress:{pct // 10}", "level": "info",
+            "message": f"Você quitou {pct}% das suas dívidas.", "link": "/dividas",
         })
     return alerts
 
@@ -131,13 +138,26 @@ def _month_label(start: date, offset: int) -> str:
     return f"{year:04d}-{month:02d}"
 
 
-def simulate(debts: list[Debt], strategy: str, monthly: Decimal, extra: Decimal, today: date) -> dict:
+def order_with_priority(debts: list[Debt], strategy: str, first_ids: list[str]) -> list[Debt]:
+    """As dívidas prioritárias vêm antes; dentro de cada grupo vale a estratégia."""
+    ordered = order_debts(debts, strategy)
+    priority = {str(i) for i in first_ids}
+    return [d for d in ordered if str(d.id) in priority] + [d for d in ordered if str(d.id) not in priority]
+
+
+def simulate(
+    debts: list[Debt], strategy: str, monthly: Decimal, extra: Decimal, today: date,
+    first_ids: list[str] | None = None, added: Decimal = ZERO,
+) -> dict:
     """
     Mês a mês, a partir do mês seguinte: aplica os juros estimados e paga na ordem da
     estratégia. O que sobra ao quitar uma dívida passa para a próxima. Extra entra no 1º mês.
     """
-    pending = [d for d in order_debts(debts, strategy) if balance_of(d) > 0]
+    active = [d for d in debts if balance_of(d) > 0]
+    pending = order_with_priority(active, strategy, first_ids or [])
     sim = [SimDebt(d.name, balance_of(d), d.interest_rate or ZERO) for d in pending]
+    if added > 0:  # valor desviado das dívidas: atrasa a quitação como um saldo a mais
+        sim.append(SimDebt("Compra não planejada", added, ZERO))
     timeline = [{"month": _month_label(today, 0), "balance": sum((s.balance for s in sim), ZERO)}]
     interest = ZERO
     months = 0

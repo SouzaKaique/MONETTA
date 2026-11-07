@@ -18,6 +18,12 @@ import { Dialog } from './dialog';
         <a class="btn btn-brand w-100" routerLink="/cartoes" (click)="dialog.close()">Ir para Cartões</a>
       } @else {
         <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+          @if (recoveryActive() && form.controls.installment_count.value > 1) {
+            <p class="notice notice-warning">
+              Modo Recuperação ativo: parcelas comprometem os meses em que você quer quitar dívidas.
+              Você decide.
+            </p>
+          }
           <div class="grid-2 mb-3">
             <div>
               <label class="form-label" for="pc-amount">Valor total</label>
@@ -96,6 +102,7 @@ export class PurchaseForm implements OnInit {
   protected readonly cards = signal<CreditCard[]>([]);
   protected readonly loaded = signal(false);
   protected readonly busy = signal(false);
+  protected readonly recoveryActive = signal(false);
   protected readonly error = signal<string | null>(null);
   private readonly allCategories = toSignal(this.finance.categories(), { initialValue: [] as Category[] });
   protected readonly categories = computed(() =>
@@ -115,6 +122,7 @@ export class PurchaseForm implements OnInit {
   });
 
   ngOnInit(): void {
+    this.finance.recovery().subscribe((r) => this.recoveryActive.set(r.active));
     this.finance.cards().subscribe((all) => {
       const active = all.filter((c) => c.active);
       this.cards.set(active);

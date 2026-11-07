@@ -42,6 +42,24 @@ export class SettingsPage {
   );
   protected readonly safetySaved = signal(false);
 
+  // Alertas
+  protected readonly alertKinds = [
+    { value: 'budget', label: 'Orçamento' },
+    { value: 'card', label: 'Cartões e faturas' },
+    { value: 'debt', label: 'Dívidas' },
+    { value: 'balance', label: 'Saldo e comprometimento' },
+    { value: 'insight', label: 'Sugestões e variações de gastos' },
+    { value: 'recovery', label: 'Modo Recuperação' },
+  ];
+  protected readonly muted = signal<string[]>(this.auth.user()?.alert_prefs.muted ?? []);
+  protected readonly alertsSaved = signal(false);
+  protected readonly alertForm = new FormGroup({
+    budget_pct: new FormControl(this.auth.user()?.alert_prefs.budget_pct ?? 80, { nonNullable: true }),
+    card_pct: new FormControl(this.auth.user()?.alert_prefs.card_pct ?? 80, { nonNullable: true }),
+    commitment_pct: new FormControl(this.auth.user()?.alert_prefs.commitment_pct ?? 80, { nonNullable: true }),
+    due_days: new FormControl(this.auth.user()?.alert_prefs.due_days ?? 3, { nonNullable: true }),
+  });
+
   // Conta
   protected readonly accountDialog = signal(false);
   protected readonly editingAccount = signal<Account | null>(null);
@@ -99,6 +117,30 @@ export class SettingsPage {
         this.finance.revision.update((v) => v + 1);
       },
       error: (e) => this.error.set(apiMessage(e, 'Não foi possível salvar.')),
+    });
+  }
+
+  protected toggleMuted(kind: string): void {
+    this.muted.update((all) => (all.includes(kind) ? all.filter((k) => k !== kind) : [...all, kind]));
+  }
+
+  protected saveAlerts(): void {
+    this.error.set(null);
+    this.alertsSaved.set(false);
+    this.auth.updateProfile({
+      alert_prefs: { ...this.alertForm.getRawValue(), muted: this.muted() },
+    }).subscribe({
+      next: () => {
+        this.alertsSaved.set(true);
+        this.finance.revision.update((v) => v + 1);
+      },
+      error: (e) => this.error.set(apiMessage(e, 'Confira os valores dos alertas.')),
+    });
+  }
+
+  protected toggleEssential(category: Category): void {
+    this.finance.saveCategory({ is_essential: !category.is_essential }, category.id).subscribe({
+      error: (e) => this.error.set(apiMessage(e, 'Não foi possível alterar.')),
     });
   }
 

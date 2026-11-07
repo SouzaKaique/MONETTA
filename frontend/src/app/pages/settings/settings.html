@@ -99,6 +99,43 @@
   </section>
 
   <section class="card-m">
+    <h2 class="card-title-m mb-1">Alertas</h2>
+    <p class="subtle">Cada situação gera um único aviso.</p>
+    <form [formGroup]="alertForm" (ngSubmit)="saveAlerts()" novalidate>
+      <div class="grid-2 mb-3">
+        <div>
+          <label class="form-label" for="al-budget">Orçamento usado (%)</label>
+          <input id="al-budget" class="form-control" type="number" min="10" max="100" formControlName="budget_pct" />
+        </div>
+        <div>
+          <label class="form-label" for="al-card">Limite do cartão (%)</label>
+          <input id="al-card" class="form-control" type="number" min="10" max="100" formControlName="card_pct" />
+        </div>
+        <div>
+          <label class="form-label" for="al-commitment">Renda comprometida (%)</label>
+          <input id="al-commitment" class="form-control" type="number" min="10" max="100" formControlName="commitment_pct" />
+        </div>
+        <div>
+          <label class="form-label" for="al-days">Avisar vencimento (dias antes)</label>
+          <input id="al-days" class="form-control" type="number" min="0" max="15" formControlName="due_days" />
+        </div>
+      </div>
+      <p class="form-label">Receber avisos sobre</p>
+      <div class="mb-3">
+        @for (k of alertKinds; track k.value) {
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" [id]="'al-' + k.value"
+                   [checked]="!muted().includes(k.value)" (change)="toggleMuted(k.value)" />
+            <label class="form-check-label" [for]="'al-' + k.value">{{ k.label }}</label>
+          </div>
+        }
+      </div>
+      <button type="submit" class="btn btn-quiet">Salvar alertas</button>
+    </form>
+    @if (alertsSaved()) { <p class="field-ok">Alertas atualizados.</p> }
+  </section>
+
+  <section class="card-m">
     <div class="section-head">
       <h2 class="card-title-m">Categorias</h2>
       <div class="segmented compact" role="group" aria-label="Tipo de categoria">
@@ -123,6 +160,12 @@
             }
           </div>
           <div class="row-actions">
+            @if (c.kind === 'expense') {
+              <button type="button" class="tag tag-button" [class.tag-ok]="c.is_essential"
+                      [attr.aria-pressed]="c.is_essential" (click)="toggleEssential(c)">
+                {{ c.is_essential ? 'Essencial' : 'Não essencial' }}
+              </button>
+            }
             @if (renaming() === c.id) {
               <button type="button" class="btn btn-quiet btn-sm" (click)="rename(c)">Salvar</button>
             } @else {

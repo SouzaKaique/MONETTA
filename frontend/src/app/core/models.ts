@@ -1,5 +1,13 @@
 export type ThemePreference = 'system' | 'light' | 'dark';
 
+export interface AlertPrefs {
+  budget_pct: number;
+  card_pct: number;
+  commitment_pct: number;
+  due_days: number;
+  muted: string[];
+}
+
 export interface User {
   id: string;
   email: string;
@@ -10,6 +18,8 @@ export interface User {
   theme: ThemePreference;
   safety_minimum: string;
   debt_strategy: DebtStrategy;
+  planned_reserve: string;
+  alert_prefs: AlertPrefs;
   created_at: string;
 }
 
@@ -65,10 +75,11 @@ export interface Dashboard {
   has_accounts: boolean;
   has_salary: boolean;
   has_data: boolean;
+  recovery_active: boolean;
   summary: DashboardSummary;
   history: HistoryPoint[];
   by_category: { category: string; total: string }[];
-  alerts: { level: 'info' | 'warning' | 'critical'; message: string }[];
+  alerts: { level: 'info' | 'warning' | 'critical'; message: string; link?: string | null }[];
 }
 
 export interface Account {
@@ -90,6 +101,7 @@ export interface Category {
   kind: Kind;
   icon: string;
   is_default: boolean;
+  is_essential: boolean;
 }
 
 export interface Transaction {
@@ -268,6 +280,114 @@ export interface DebtSimulation {
   strategy: DebtStrategy;
   capacity: Money;
   scenarios: DebtScenario[];
+}
+
+export interface UntilSalary {
+  has_salary: boolean;
+  next_salary_date?: string;
+  days_left?: number;
+  balance?: string;
+  committed?: string;
+  safety_minimum?: string;
+  commitments?: { kind: string; label: string; date: string | null; amount: string }[];
+  scenario_spend?: string;
+  available?: string;
+  shortfall?: string;
+  daily_limit?: string;
+  weekly_limit?: string;
+}
+
+export interface BudgetRow {
+  category_id: string | null;
+  name: string;
+  icon: string;
+  is_essential: boolean;
+  limit: Money;
+  spent: string;
+  remaining: Money;
+  pct: number | null;
+}
+
+export interface Planning {
+  month: string;
+  is_current_month: boolean;
+  income_expected: string;
+  income_received: string;
+  expenses_paid: string;
+  expenses_pending: string;
+  card_commitment: string;
+  future_commitments: string;
+  reserved: string;
+  projected_balance: Money;
+  available: Money;
+  commitment_pct: number | null;
+  distribution: { key: string; label: string; amount: Money }[];
+  budgets: BudgetRow[];
+}
+
+export interface CalendarEvent {
+  id: string;
+  type: string;
+  date: string;
+  title: string;
+  amount: Money;
+  status: 'pending' | 'done';
+  transaction_id?: string;
+  link: string;
+}
+
+export interface RecoveryConfig {
+  active: boolean;
+  monthly_amount: string;
+  strategy: DebtStrategy;
+  priority_debt_ids: string[];
+  non_essential_limit: Money;
+  reserve_minimum: string;
+  spending_goal_pct: number | null;
+  target_date: string | null;
+  started_on: string;
+  ended_on: string | null;
+}
+
+export interface RecoveryStatus {
+  initial_debt: string;
+  current_debt: string;
+  paid: string;
+  reduction_pct: number;
+  available_for_payments: Money;
+  paid_this_month: string;
+  next_debt: string | null;
+  forecast: { feasible: boolean; months: number | null; finish_month: string | null; total_interest: Money };
+  on_target: boolean | null;
+  evolution: { month: string; balance: string }[];
+  non_essential: { spent: string; limit: Money; baseline: Money; goal_amount: Money };
+  recommendations: string[];
+}
+
+export interface Recovery {
+  configured: boolean;
+  active: boolean;
+  config?: RecoveryConfig;
+  status?: RecoveryStatus;
+}
+
+export interface RecoveryImpact {
+  amount: string;
+  months_before: number | null;
+  months_after: number | null;
+  delay_months: number | null;
+  finish_before: string | null;
+  finish_after: string | null;
+}
+
+export interface AppNotification {
+  id: string;
+  kind: string;
+  level: 'info' | 'warning' | 'critical';
+  message: string;
+  link: string | null;
+  created_at: string;
+  read: boolean;
 }
 
 export interface Transfer {

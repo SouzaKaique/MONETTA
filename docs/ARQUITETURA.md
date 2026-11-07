@@ -70,19 +70,22 @@ serviço de envio de e-mail.
 
 **Etapa 4:** `debts`, `debt_payments`.
 
+**Etapa 5:** `budgets`, `recovery_plans`, `notifications`. Os eventos do calendário são calculados
+a partir dos módulos, por isso não existe tabela `financial_events`: uma cópia poderia divergir.
+
 **Nas próximas etapas, por migração:**
 
 | Etapa | Tabelas |
 |---|---|
-| 5 | `budgets`, `notifications`, `financial_events` |
 | 6 | `wishlist_items`, `savings_goals`, `goal_contributions` |
 
 ## Regras do saldo
 
 - **Saldo atual:** abertura das contas ativas + entradas confirmadas − saídas confirmadas, até hoje.
   Movimentos anteriores à data de abertura ficam de fora, porque o saldo de abertura já os contém.
-- **Disponível para gastar:** saldo atual − despesas pendentes até o fim do mês, incluindo atrasadas
-  − mínimo de segurança, nunca abaixo de zero. Receita futura nunca entra nesta conta.
+- **Disponível para gastar:** com salário cadastrado, é o mesmo valor do simulador até o próximo
+  salário. Sem salário: saldo atual − pendências do mês, inclusive atrasadas − faturas − dívidas
+  combinadas − reserva − mínimo de segurança. Nunca fica abaixo de zero nem conta receita futura.
 - **Renda comprometida:** despesas do mês ÷ renda do mês. Aqui o previsto entra, apenas como medida.
 - **Dinheiro livre:** renda prevista − despesas do mês, por competência. Não é saldo em conta.
 - **Transferências:** mudam o saldo de cada conta, mas não o total, nem receitas ou despesas.
@@ -132,6 +135,32 @@ serviço de envio de e-mail.
   escolhida; o que sobra ao quitar uma dívida passa para a próxima. O extra entra no 1º mês.
 - **Limite recomendado:** renda prevista − despesas do mês − mínimo de segurança. Acima disso,
   o cenário aparece como não recomendado, mas continua disponível.
+
+## Planejamento
+
+- **Até o próximo salário:** saldo confirmado − pendências antes do salário, inclusive atrasadas −
+  restante das faturas que vencem antes dele − dívidas do mês − reserva − mínimo de segurança.
+  O limite diário divide esse valor pelos dias restantes. O que vence no dia do salário fica fora.
+- **Orçamento:** o limite vale a partir de um mês; meses anteriores não mudam. Zero remove o limite.
+- **Distribuição da renda:** essenciais e variáveis (lançamentos), cartões (parcelas), dívidas
+  (pagas e combinadas), reserva e dinheiro livre. Cada valor aparece em um único grupo.
+- **Reserva mensal:** intenção de guardar. Reduz o disponível, mas não é despesa.
+- **Calendário:** reúne lançamentos, fechamentos, vencimentos, dívidas e a meta do Modo Recuperação.
+
+## Modo Recuperação
+
+- Orienta, sem bloquear nenhuma decisão.
+- Enquanto ativo, o mês reserva o maior valor entre o combinado e o valor mensal definido, e vale
+  a maior reserva mínima entre o perfil e o modo.
+- A dívida inicial é gravada na primeira ativação. Desativar e reativar preserva dados e histórico.
+- Dívidas prioritárias vêm antes das demais; dentro de cada grupo vale a estratégia.
+- Compra não planejada: simulada como se o valor saísse do que iria para as dívidas.
+
+## Alertas e notificações
+
+- Dashboard e notificações usam a mesma origem. O dashboard mostra a situação atual; a notificação
+  guarda o histórico e cada chave é gerada uma única vez.
+- As preferências definem limites e silenciam grupos de avisos.
 
 ## Identidade visual
 

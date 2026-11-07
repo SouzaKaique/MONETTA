@@ -32,7 +32,13 @@
     <div class="notice mt-3" [class.notice-critical]="alert.level === 'critical'"
          [class.notice-warning]="alert.level === 'warning'"
          [class.notice-success]="alert.level === 'info'" role="status">
-      <i class="bi bi-exclamation-triangle" aria-hidden="true"></i><span>{{ alert.message }}</span>
+      <i class="bi" [class.bi-check-circle]="alert.level === 'info'"
+         [class.bi-exclamation-triangle]="alert.level !== 'info'" aria-hidden="true"></i>
+      @if (alert.link) {
+        <a class="alert-link" [routerLink]="alert.link">{{ alert.message }}</a>
+      } @else {
+        <span>{{ alert.message }}</span>
+      }
     </div>
   }
 
@@ -41,7 +47,7 @@
       @if (d.is_current_month) {
         <p class="hero-label">Disponível para gastar</p>
         <p class="hero-value display money">{{ money(d.summary.available_to_spend) }}</p>
-        <p class="hero-note">Já descontados despesas pendentes, faturas, dívidas combinadas e mínimo de segurança.</p>
+        <p class="hero-note">Já descontados contas, faturas, dívidas, reserva e mínimo de segurança.</p>
       } @else {
         <p class="hero-label">{{ d.summary.balance === null ? 'Mês futuro' : 'Saldo ao fim do mês' }}</p>
         <p class="hero-value display money">{{ money(d.summary.balance) }}</p>
@@ -67,6 +73,16 @@
       </div>
     </dl>
   </section>
+
+  @if (d.recovery_active) {
+    <a class="recovery-banner mt-3" routerLink="/recuperacao">
+      <i class="bi bi-shield-check" aria-hidden="true"></i>
+      <span>Modo Recuperação ativo</span>
+      <i class="bi bi-chevron-right ms-auto" aria-hidden="true"></i>
+    </a>
+  }
+
+  @if (d.is_current_month) { <app-until-salary /> }
 
   <section class="kpis" aria-label="Indicadores do mês">
     @for (kpi of kpis(); track kpi.label) {

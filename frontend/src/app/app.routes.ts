@@ -56,8 +56,22 @@ export const routes: Routes = [
         path: 'dividas',
         loadComponent: () => import('./pages/debts/debts').then((m) => m.DebtsPage),
       },
-      { path: 'planejamento', ...upcoming('Planejamento', 5, 'Orçamento mensal, simulador até o próximo salário e Modo Recuperação.') },
-      { path: 'calendario', ...upcoming('Calendário', 5, 'Tudo o que entra e sai, dia a dia.') },
+      {
+        path: 'planejamento',
+        loadComponent: () => import('./pages/planning/planning').then((m) => m.PlanningPage),
+      },
+      {
+        path: 'calendario',
+        loadComponent: () => import('./pages/calendar/calendar').then((m) => m.CalendarPage),
+      },
+      {
+        path: 'recuperacao',
+        loadComponent: () => import('./pages/recovery/recovery').then((m) => m.RecoveryPage),
+      },
+      {
+        path: 'notificacoes',
+        loadComponent: () => import('./pages/notifications/notifications').then((m) => m.NotificationsPage),
+      },
       { path: 'wishlist', ...upcoming('Wishlist', 6, 'Metas de compra e a análise "Posso comprar?".') },
       { path: 'relatorios', ...upcoming('Relatórios', 7, 'Gráficos por período e exportação em CSV.') },
     ],

@@ -1,5 +1,11 @@
 <aside class="sidebar">
-  <a class="wordmark display" routerLink="/">Monetta</a>
+  <div class="side-head">
+    <a class="wordmark display" routerLink="/">Monetta</a>
+    <a class="bell" routerLink="/notificacoes" [attr.aria-label]="unread() + ' notificações não lidas'">
+      <i class="bi bi-bell" aria-hidden="true"></i>
+      @if (unread()) { <span class="badge-count">{{ unread() > 99 ? '99+' : unread() }}</span> }
+    </a>
+  </div>
   <nav aria-label="Navegação principal">
     @for (item of nav; track item.path) {
       <a class="nav-link-m" [routerLink]="item.path" routerLinkActive="active"
@@ -22,11 +28,17 @@
 <div class="content">
   <header class="topbar">
     <a class="wordmark display" routerLink="/">Monetta</a>
-    @if (auth.user(); as user) {
-      <a routerLink="/perfil" aria-label="Abrir perfil">
-        <app-avatar [name]="user.account_name" [url]="user.avatar_url" />
+    <div class="top-actions">
+      <a class="bell" routerLink="/notificacoes" [attr.aria-label]="unread() + ' notificações não lidas'">
+        <i class="bi bi-bell" aria-hidden="true"></i>
+        @if (unread()) { <span class="badge-count">{{ unread() > 99 ? '99+' : unread() }}</span> }
       </a>
-    }
+      @if (auth.user(); as user) {
+        <a routerLink="/perfil" aria-label="Abrir perfil">
+          <app-avatar [name]="user.account_name" [url]="user.avatar_url" />
+        </a>
+      }
+    </div>
   </header>
   <main>
     <router-outlet />
@@ -47,7 +59,12 @@
 }
 
 <nav class="bottom-nav" aria-label="Navegação principal">
-  @for (item of mobile; track item.path) {
+  @for (item of mobile; track item.path; let i = $index) {
+    @if (i === 2) {
+      <button type="button" class="nav-add" aria-label="Nova despesa" (click)="quickExpense.set(true)">
+        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+      </button>
+    }
     <a [routerLink]="item.path" routerLinkActive="active" (click)="moreOpen.set(false)"
        [routerLinkActiveOptions]="item.path === '/' ? exact : { exact: false }">
       <i class="bi {{ item.icon }}" aria-hidden="true"></i>

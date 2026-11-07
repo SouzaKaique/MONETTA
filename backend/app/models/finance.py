@@ -20,6 +20,9 @@ class AppSettings(TimestampMixin, db.Model):
     timezone: Mapped[str] = mapped_column(sa.String(50), default="America/Sao_Paulo")
     safety_minimum: Mapped[Money] = mapped_column(default=Decimal("0.00"))
     debt_strategy: Mapped[str] = mapped_column(sa.String(12), default="snowball", server_default="snowball")
+    # Valor que o usuário pretende guardar por mês; não é despesa.
+    planned_reserve: Mapped[Money] = mapped_column(default=Decimal("0.00"), server_default="0")
+    alert_prefs: Mapped[dict | None] = mapped_column(sa.JSON)
 
     user: Mapped["User"] = relationship(back_populates="settings")  # noqa: F821
 
@@ -47,6 +50,7 @@ class Category(IdMixin, TimestampMixin, db.Model):
     kind: Mapped[str] = mapped_column(sa.String(10))  # income | expense
     icon: Mapped[str] = mapped_column(sa.String(40), default="tag")
     is_default: Mapped[bool] = mapped_column(default=False)
+    is_essential: Mapped[bool] = mapped_column(default=False, server_default=sa.false())
 
 
 class Recurrence(IdMixin, TimestampMixin, db.Model):

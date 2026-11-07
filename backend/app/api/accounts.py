@@ -47,10 +47,12 @@ class CategorySchema(Schema):
     name = fields.String(required=True, validate=validate.Length(min=1, max=60))
     kind = fields.String(required=True, validate=validate.OneOf(["income", "expense"]))
     icon = fields.String(load_default="tag", validate=validate.Regexp(r"^[a-z0-9-]{1,40}$"))
+    is_essential = fields.Boolean(load_default=False)
 
 
 class CategoryUpdateSchema(Schema):
     name = fields.String(validate=validate.Length(min=1, max=60))
+    is_essential = fields.Boolean()
     icon = fields.String(validate=validate.Regexp(r"^[a-z0-9-]{1,40}$"))
 
 

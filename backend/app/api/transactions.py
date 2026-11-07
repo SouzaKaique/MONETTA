@@ -132,6 +132,12 @@ def list_transactions():
     })
 
 
+@bp.get("/<uuid:tx_id>")
+@login_required
+def get_transaction(tx_id):
+    return jsonify(transaction_payload(owned(Transaction, tx_id)))
+
+
 @bp.post("")
 @login_required
 def create_transaction():

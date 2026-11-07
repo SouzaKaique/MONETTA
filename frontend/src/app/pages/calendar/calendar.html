@@ -1,0 +1,87 @@
+<header class="page-head">
+  <div>
+    <h1 class="page-title">Calendário</h1>
+    <p class="muted mb-0">Quando o dinheiro entra e quando precisa sair.</p>
+  </div>
+  <app-month-picker [month]="month()" (monthChange)="month.set($event)" />
+</header>
+
+@if (error()) {
+  <div class="notice notice-critical mt-3" role="alert">
+    <i class="bi bi-exclamation-circle" aria-hidden="true"></i><span>{{ error() }}</span>
+  </div>
+}
+
+<div class="filters-row mt-3" role="group" aria-label="Filtrar por tipo">
+  @for (t of types; track t.key) {
+    <button type="button" class="chip type-{{ t.key }}" [class.off]="hidden().includes(t.key)"
+            [attr.aria-pressed]="!hidden().includes(t.key)" (click)="toggleType(t.key)">
+      <i class="bi {{ t.icon }}" aria-hidden="true"></i>{{ t.label }}
+    </button>
+  }
+</div>
+
+<section class="card-m mt-3 grid-card" aria-label="Calendário do mês">
+  <div class="weekdays" aria-hidden="true">
+    @for (w of weekdays; track w) { <span>{{ w }}</span> }
+  </div>
+  <div class="month-grid">
+    @for (blank of leading(); track $index) { <div class="cell empty"></div> }
+    @for (d of days(); track d.iso) {
+      <div class="cell" [class.today]="d.iso === today">
+        <span class="day-number">{{ d.day }}</span>
+        @for (e of d.events; track e.id) {
+          <button type="button" class="event type-{{ e.type }}" [class.done]="e.status === 'done'"
+                  (click)="selected.set(e)">
+            <i class="bi {{ icon(e.type) }}" aria-hidden="true"></i>
+            <span>{{ e.title }}</span>
+          </button>
+        }
+      </div>
+    }
+  </div>
+</section>
+
+<section class="list-card mt-3" aria-label="Eventos em ordem cronológica">
+  @if (!listDays().length) {
+    <p class="subtle">Nenhum evento neste mês.</p>
+  }
+  @for (d of listDays(); track d.iso) {
+    <h2 class="list-day" [class.today]="d.iso === today">{{ date(d.iso) }}</h2>
+    <div class="card-m list-group">
+      @for (e of d.events; track e.id) {
+        <button type="button" class="list-event" [class.done]="e.status === 'done'" (click)="selected.set(e)">
+          <span class="list-icon type-{{ e.type }}"><i class="bi {{ icon(e.type) }}" aria-hidden="true"></i></span>
+          <span class="list-title">{{ e.title }}</span>
+          @if (e.amount !== null) { <span class="money">{{ money(e.amount) }}</span> }
+        </button>
+      }
+    </div>
+  }
+</section>
+
+@if (selected(); as e) {
+  <app-dialog #box [heading]="e.title" (closed)="selected.set(null)">
+    <dl class="details">
+      <div><dt>Tipo</dt><dd>{{ typeLabel(e.type) }}</dd></div>
+      <div><dt>Data</dt><dd>{{ date(e.date) }}</dd></div>
+      @if (e.amount !== null) { <div><dt>Valor</dt><dd class="money">{{ money(e.amount) }}</dd></div> }
+      <div><dt>Situação</dt><dd>{{ e.status === 'done' ? 'Concluído' : 'Pendente' }}</dd></div>
+    </dl>
+    <div class="d-grid gap-2 mt-3">
+      @if (e.transaction_id && e.status === 'pending') {
+        <button type="button" class="btn btn-brand" (click)="openTransaction(e, 'confirm')">
+          {{ e.type === 'salary' || e.type === 'income' ? 'Registrar recebimento' : 'Registrar pagamento' }}
+        </button>
+      }
+      @if (e.transaction_id) {
+        <button type="button" class="btn btn-quiet" (click)="openTransaction(e, 'edit')">Editar</button>
+      } @else {
+        <a class="btn btn-quiet" [routerLink]="e.link" (click)="box.close()">Ver detalhes</a>
+      }
+    </div>
+  </app-dialog>
+}
+
+@if (confirming(); as tx) { <app-confirm-form [transaction]="tx" (closed)="confirming.set(null)" /> }
+@if (editing(); as tx) { <app-transaction-form [kind]="tx.kind" [transaction]="tx" (closed)="editing.set(null)" /> }

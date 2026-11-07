@@ -9,7 +9,7 @@ from ..extensions import db
 from ..models import Debt, DebtPayment
 from ..services import debts as service
 from ..services.balances import ZERO
-from ..services.dashboard import build_dashboard
+from ..services.dashboard import monthly_capacity
 from .common import error, load_body, login_required
 from .finance_common import MoneyField, check_account, find_by_key, owned, today
 
@@ -98,19 +98,6 @@ def debt_payload(debt: Debt) -> dict:
         "interest_rate": debt.interest_rate, "priority": debt.priority, "notes": debt.notes,
         "payments": [payment_payload(p) for p in debt.payments],
     }
-
-
-def monthly_capacity() -> Decimal | None:
-    """
-    Quanto sobra da renda prevista do mês depois das despesas e do mínimo de segurança.
-    Serve de teto para não sugerir pagamentos que comprometam contas essenciais.
-    """
-    now = today()
-    summary = build_dashboard(g.user.id, g.user.settings, now.year, now.month)["summary"]
-    if summary["income_expected"] <= 0:
-        return None
-    left = summary["income_expected"] - summary["expenses_total"] - g.user.settings.safety_minimum
-    return max(ZERO, left)
 
 
 @bp.get("/debts")
@@ -232,7 +219,7 @@ def simulate_debts():
     data = load_body(SimulationSchema())
     strategy = data["strategy"] or g.user.settings.debt_strategy
     debts = service.user_debts(g.user.id)
-    capacity = monthly_capacity()
+    capacity = monthly_capacity(g.user.id, g.user.settings, today())
 
     scenarios = []
     for amount in data["amounts"]:

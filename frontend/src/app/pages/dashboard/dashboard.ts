@@ -7,6 +7,7 @@ import { formatMoney, todayIso } from '../../core/format';
 import { Dashboard, Money } from '../../core/models';
 import { MonthPicker } from '../../shared/month-picker';
 import { HistoryChart } from './history-chart';
+import { UntilSalaryCard } from './until-salary';
 
 interface Kpi {
   label: string;
@@ -16,7 +17,7 @@ interface Kpi {
 
 @Component({
   selector: 'app-dashboard',
-  imports: [HistoryChart, MonthPicker, RouterLink],
+  imports: [HistoryChart, MonthPicker, RouterLink, UntilSalaryCard],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
 })

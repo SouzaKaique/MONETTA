@@ -81,6 +81,7 @@ def category_payload(category: Category) -> dict:
     return {
         "id": str(category.id), "name": category.name, "kind": category.kind,
         "icon": category.icon, "is_default": category.is_default,
+        "is_essential": category.is_essential,
     }
 
 

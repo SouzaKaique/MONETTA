@@ -8,6 +8,7 @@ DEFAULT_EXPENSE_CATEGORIES = [
     ("Assinaturas", "arrow-repeat"), ("Educação", "book"), ("Serviços", "tools"),
     ("Outros", "three-dots"),
 ]
+ESSENTIAL_CATEGORIES = {"Moradia", "Alimentação", "Transporte", "Saúde", "Serviços", "Educação"}
 DEFAULT_INCOME_CATEGORIES = [
     ("Salário", "wallet2"), ("Freelance", "laptop"), ("Vendas", "shop"),
     ("Comissões", "percent"), ("Presentes", "gift"), ("Outras entradas", "plus-circle"),
@@ -26,7 +27,8 @@ def create_user(
     db.session.add(user)
     db.session.flush()
     db.session.add_all(
-        [Category(user_id=user.id, kind="expense", name=n, icon=i, is_default=True)
+        [Category(user_id=user.id, kind="expense", name=n, icon=i, is_default=True,
+                  is_essential=n in ESSENTIAL_CATEGORIES)
          for n, i in DEFAULT_EXPENSE_CATEGORIES]
         + [Category(user_id=user.id, kind="income", name=n, icon=i, is_default=True)
            for n, i in DEFAULT_INCOME_CATEGORIES]

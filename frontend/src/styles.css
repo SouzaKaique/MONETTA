@@ -332,3 +332,4 @@ a:focus-visible, button:focus-visible {
 .card-plum { background: #43294f; }
 
 .tag-ok { background: var(--accent-soft); color: var(--accent); }
+.tag-button { border: 0; margin-right: 0.25rem; }

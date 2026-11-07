@@ -1,0 +1,195 @@
+<a class="back subtle" routerLink="/planejamento"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Planejamento</a>
+
+<header class="page-head mt-2">
+  <div>
+    <h1 class="page-title">Modo Recuperação Financeira</h1>
+    <p class="muted mb-0">Quitar dívidas primeiro, com o mês sob controle.</p>
+  </div>
+  @if (data()?.active) {
+    <div class="d-flex gap-2 flex-wrap">
+      <button type="button" class="btn btn-quiet" (click)="openConfig()">Ajustar</button>
+      @if (confirmingOff()) {
+        <button type="button" class="btn btn-danger-quiet" (click)="deactivate()">Desativar?</button>
+      } @else {
+        <button type="button" class="btn btn-quiet" (click)="confirmingOff.set(true)">Desativar</button>
+      }
+    </div>
+  }
+</header>
+
+@if (error()) {
+  <div class="notice notice-critical mt-3" role="alert">
+    <i class="bi bi-exclamation-circle" aria-hidden="true"></i><span>{{ error() }}</span>
+  </div>
+}
+
+@if (data(); as r) {
+  @if (!r.active && !configuring()) {
+    <section class="card-m mt-3">
+      <h2 class="card-title-m mb-2">{{ r.configured ? 'O modo está desativado' : 'Como funciona' }}</h2>
+      <ul class="how">
+        <li>Reserva o valor mensal das dívidas antes de calcular o que você pode gastar.</li>
+        <li>Acompanha gastos não essenciais e avisa sobre novas compras parceladas.</li>
+        <li>Mostra quanto uma compra não planejada atrasa a quitação.</li>
+        <li>Nunca bloqueia nada: as decisões continuam sendo suas.</li>
+      </ul>
+      @if (r.configured) {
+        <p class="subtle">Seus dados e o histórico continuam guardados.</p>
+      }
+      <button type="button" class="btn btn-brand" (click)="openConfig()">
+        {{ r.configured ? 'Reativar' : 'Configurar e ativar' }}
+      </button>
+    </section>
+  }
+
+  @if (configuring()) {
+    <section class="card-m mt-3 fade-up">
+      <h2 class="card-title-m mb-3">Configuração</h2>
+      <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+        <div class="grid-2 mb-3">
+          <div>
+            <label class="form-label" for="rv-monthly">Valor mensal para dívidas</label>
+            <input id="rv-monthly" class="form-control money" formControlName="monthly_amount" inputmode="decimal" placeholder="0,00" autocomplete="off" />
+          </div>
+          <div>
+            <label class="form-label" for="rv-strategy">Estratégia</label>
+            <select id="rv-strategy" class="form-select" formControlName="strategy">
+              @for (s of strategies; track s.value) { <option [value]="s.value">{{ s.label }}</option> }
+            </select>
+          </div>
+          <div>
+            <label class="form-label" for="rv-limit">Limite de não essenciais (opcional)</label>
+            <input id="rv-limit" class="form-control money" formControlName="non_essential_limit" inputmode="decimal" placeholder="0,00" autocomplete="off" />
+          </div>
+          <div>
+            <label class="form-label" for="rv-reserve">Reserva mínima (opcional)</label>
+            <input id="rv-reserve" class="form-control money" formControlName="reserve_minimum" inputmode="decimal" placeholder="0,00" autocomplete="off" />
+          </div>
+          <div>
+            <label class="form-label" for="rv-goal">Meta de redução de gastos, % (opcional)</label>
+            <input id="rv-goal" class="form-control" type="number" min="1" max="100" formControlName="spending_goal_pct" />
+          </div>
+          <div>
+            <label class="form-label" for="rv-target">Terminar até (opcional)</label>
+            <input id="rv-target" class="form-control" type="date" formControlName="target_date" />
+          </div>
+        </div>
+
+        @if (activeDebts().length) {
+          <p class="form-label">Dívidas prioritárias (opcional)</p>
+          <div class="mb-3">
+            @for (d of activeDebts(); track d.id) {
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" [id]="'rv-' + d.id"
+                       [checked]="priority().includes(d.id)" (change)="togglePriority(d.id)" />
+                <label class="form-check-label" [for]="'rv-' + d.id">{{ d.name }} · {{ money(d.balance) }}</label>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="subtle"><a routerLink="/dividas">Cadastre suas dívidas</a> para acompanhar a quitação.</p>
+        }
+
+        @if (formError()) { <p class="field-error mb-2" role="alert">{{ formError() }}</p> }
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-brand" [disabled]="busy()">Salvar e ativar</button>
+          <button type="button" class="btn btn-quiet" (click)="configuring.set(false)">Cancelar</button>
+        </div>
+      </form>
+    </section>
+  }
+
+  @if (r.active && r.status; as s) {
+    <section class="hero fade-up">
+      <div>
+        <p class="hero-label">Dívida atual</p>
+        <p class="hero-value display money">{{ money(s.current_debt) }}</p>
+        <div class="meter" role="meter" aria-label="Redução da dívida"
+             [attr.aria-valuenow]="s.reduction_pct" aria-valuemin="0" aria-valuemax="100">
+          <span [style.width.%]="s.reduction_pct"></span>
+        </div>
+        <p class="hero-note">{{ s.reduction_pct }}% de redução desde o início</p>
+      </div>
+      <dl class="hero-side">
+        <div><dt>Dívida inicial</dt><dd class="money">{{ money(s.initial_debt) }}</dd></div>
+        <div><dt>Já quitado</dt><dd class="money">{{ money(s.paid) }}</dd></div>
+        <div><dt>Próxima dívida</dt><dd>{{ s.next_debt ?? 'Nenhuma' }}</dd></div>
+        <div>
+          <dt>Previsão de término</dt>
+          <dd class="first-up">
+            @if (!s.forecast.feasible) { Sem previsão }
+            @else if (s.forecast.finish_month) { {{ monthLabel(s.forecast.finish_month) }} }
+            @else { Quitado }
+          </dd>
+        </div>
+      </dl>
+    </section>
+
+    @if (s.recommendations.length) {
+      <section class="card-m mt-3">
+        <h2 class="card-title-m mb-2">Recomendações</h2>
+        <ul class="tips">
+          @for (tip of s.recommendations; track tip) { <li>{{ tip }}</li> }
+        </ul>
+      </section>
+    }
+
+    <div class="two-col mt-3">
+      <section class="card-m">
+        <h2 class="card-title-m mb-2">Este mês</h2>
+        <dl class="figures">
+          <div><dt>Pago em dívidas</dt><dd class="money">{{ money(s.paid_this_month) }}</dd></div>
+          <div><dt>Valor mensal definido</dt><dd class="money">{{ money(r.config?.monthly_amount) }}</dd></div>
+          <div><dt>Disponível para pagamentos</dt><dd class="money">{{ money(s.available_for_payments) }}</dd></div>
+          <div><dt>Não essenciais</dt><dd class="money">{{ money(s.non_essential.spent) }}</dd></div>
+          @if (s.non_essential.limit) {
+            <div><dt>Limite de não essenciais</dt><dd class="money" [class.over]="limitOver()">{{ money(s.non_essential.limit) }}</dd></div>
+          }
+          @if (s.non_essential.goal_amount) {
+            <div><dt>Meta de gastos</dt><dd class="money">{{ money(s.non_essential.goal_amount) }}</dd></div>
+          }
+          @if (r.config?.target_date) {
+            <div><dt>Data desejada</dt><dd>{{ date(r.config?.target_date) }} · {{ s.on_target ? 'no prazo' : 'fora do prazo' }}</dd></div>
+          }
+        </dl>
+      </section>
+
+      <section class="card-m">
+        <h2 class="card-title-m mb-3">Evolução mensal</h2>
+        <ul class="evolution">
+          @for (e of s.evolution; track e.month) {
+            <li>
+              <div class="evo-row"><span>{{ monthShort(e.month) }}</span><span class="money">{{ money(e.balance) }}</span></div>
+              <div class="evo-track"><span [style.width.%]="evolutionWidth(e.balance)"></span></div>
+            </li>
+          }
+        </ul>
+      </section>
+    </div>
+
+    <section class="card-m mt-3">
+      <h2 class="card-title-m mb-1">Impacto de uma compra não planejada</h2>
+      <p class="subtle">Se esse dinheiro sair do que iria para as dívidas.</p>
+      <form class="inline" (submit)="$event.preventDefault(); simulateImpact()">
+        <input class="form-control money" [formControl]="impactAmount" inputmode="decimal"
+               placeholder="0,00" aria-label="Valor da compra" />
+        <button type="submit" class="btn btn-quiet">Calcular</button>
+      </form>
+      @if (impact(); as i) {
+        <p class="mt-2 mb-0">
+          @if (i.delay_months === null) {
+            Não há previsão de término com o valor mensal atual.
+          } @else if (i.delay_months === 0) {
+            Esta compra não muda o mês de quitação.
+          } @else {
+            Atrasa a quitação em <strong>{{ i.delay_months }} {{ i.delay_months === 1 ? 'mês' : 'meses' }}</strong>.
+          }
+        </p>
+      }
+    </section>
+
+    @if (activeDebts().length && r.config) {
+      <section class="card-m mt-3"><app-debt-simulator [strategy]="r.config.strategy" /></section>
+    }
+  }
+}

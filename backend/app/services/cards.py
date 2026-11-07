@@ -13,8 +13,6 @@ from ..models import (
 from .balances import ZERO
 from .periods import clamp_day, month_bounds, shift_month
 
-HIGH_USAGE_PCT = 80
-DUE_SOON_DAYS = 3
 SPENDING_MONTHS = 6
 
 
@@ -206,25 +204,32 @@ def installments_by_category(user_id: UUID, start: date, end: date) -> dict[str 
     return {name: total for name, total in rows}
 
 
-def card_alerts(user_id: UUID, today: date) -> list[dict]:
+def card_alerts(user_id: UUID, today: date, usage_pct: int = 80, due_days: int = 3) -> list[dict]:
     alerts = []
     cards = db.session.scalars(
         sa.select(CreditCard).where(CreditCard.user_id == user_id, CreditCard.active)
     ).all()
     for card in cards:
         summary = card_summary(card, today)
-        if summary["usage_pct"] is not None and summary["usage_pct"] >= HIGH_USAGE_PCT:
+        link = f"/cartoes/{card.id}"
+        if summary["usage_pct"] is not None and summary["usage_pct"] >= usage_pct:
             alerts.append({
-                "level": "warning",
-                "message": f"{card.name}: {summary['usage_pct']}% do limite utilizado.",
+                "kind": "card", "key": f"card-usage:{card.id}:{today:%Y-%m}", "level": "warning",
+                "message": f"{card.name}: {summary['usage_pct']}% do limite utilizado.", "link": link,
             })
         for invoice in card_invoices(card):
             status = invoice_status(invoice, today)
             if status == "overdue":
-                alerts.append({"level": "critical", "message": f"Fatura do {card.name} em atraso."})
+                alerts.append({
+                    "kind": "card", "key": f"invoice-late:{invoice.id}", "level": "critical",
+                    "message": f"Fatura do {card.name} em atraso.", "link": link,
+                })
             elif status != "paid" and invoice_total(invoice) > 0:
                 days = (invoice.due_date - today).days
-                if 0 <= days <= DUE_SOON_DAYS:
+                if 0 <= days <= due_days:
                     when = "hoje" if days == 0 else f"em {days} dia(s)"
-                    alerts.append({"level": "warning", "message": f"Fatura do {card.name} vence {when}."})
+                    alerts.append({
+                        "kind": "card", "key": f"invoice-due:{invoice.id}", "level": "warning",
+                        "message": f"Fatura do {card.name} vence {when}.", "link": link,
+                    })
     return alerts

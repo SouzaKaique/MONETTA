@@ -2,8 +2,9 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { Observable, tap } from 'rxjs';
 import {
-  Account, CardDetail, Category, CreditCard, Dashboard, Debt, DebtList, DebtSimulation, DebtStrategy,
-  Installment, Invoice, InvoiceDetail, Kind, Purchase, Recurrence, Transaction, TransactionPage, Transfer,
+  Account, AppNotification, CalendarEvent, CardDetail, Category, CreditCard, Dashboard, Debt, DebtList,
+  DebtSimulation, DebtStrategy, Installment, Invoice, InvoiceDetail, Kind, Planning, Purchase,
+  Recovery, RecoveryImpact, UntilSalary, Recurrence, Transaction, TransactionPage, Transfer,
 } from './models';
 
 export interface TransactionFilters {
@@ -200,6 +201,58 @@ export class FinanceService {
 
   simulateDebts(body: object): Observable<DebtSimulation> {
     return this.http.post<DebtSimulation>('/api/debts/simulate', body);
+  }
+
+  untilSalary(spend?: string): Observable<UntilSalary> {
+    return this.http.get<UntilSalary>('/api/planning/until-salary', {
+      params: spend ? { spend } : {},
+    });
+  }
+
+  planning(month: string): Observable<Planning> {
+    return this.http.get<Planning>('/api/planning', { params: { month } });
+  }
+
+  saveBudget(category_id: string, amount: string, month: string): Observable<unknown> {
+    return this.changed(this.http.put('/api/budgets', { category_id, amount, month }));
+  }
+
+  calendar(month: string): Observable<{ month: string; events: CalendarEvent[] }> {
+    return this.http.get<{ month: string; events: CalendarEvent[] }>('/api/calendar', {
+      params: { month },
+    });
+  }
+
+  transaction(id: string): Observable<Transaction> {
+    return this.http.get<Transaction>(`/api/transactions/${id}`);
+  }
+
+  recovery(): Observable<Recovery> {
+    return this.http.get<Recovery>('/api/recovery');
+  }
+
+  saveRecovery(body: object): Observable<Recovery> {
+    return this.changed(this.http.put<Recovery>('/api/recovery', body));
+  }
+
+  deactivateRecovery(): Observable<Recovery> {
+    return this.changed(this.http.post<Recovery>('/api/recovery/deactivate', {}));
+  }
+
+  recoveryImpact(amount: string): Observable<RecoveryImpact> {
+    return this.http.post<RecoveryImpact>('/api/recovery/impact', { amount });
+  }
+
+  notifications(): Observable<{ unread: number; items: AppNotification[] }> {
+    return this.http.get<{ unread: number; items: AppNotification[] }>('/api/notifications');
+  }
+
+  readNotification(id: string): Observable<unknown> {
+    return this.changed(this.http.post(`/api/notifications/${id}/read`, {}));
+  }
+
+  readAllNotifications(): Observable<unknown> {
+    return this.changed(this.http.post('/api/notifications/read-all', {}));
   }
 
   installments(month: string): Observable<{ items: Installment[]; total: string }> {

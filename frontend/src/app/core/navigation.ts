@@ -18,6 +18,6 @@ export const NAV_ITEMS: NavItem[] = [
 ];
 
 /** Itens fixos da barra inferior no celular; o restante fica em "Mais". */
-const MOBILE_PATHS = ['/', '/despesas', '/cartoes', '/calendario'];
+const MOBILE_PATHS = ['/', '/despesas', '/cartoes'];
 export const MOBILE_ITEMS = NAV_ITEMS.filter((i) => MOBILE_PATHS.includes(i.path));
 export const MORE_ITEMS = NAV_ITEMS.filter((i) => !MOBILE_PATHS.includes(i.path));

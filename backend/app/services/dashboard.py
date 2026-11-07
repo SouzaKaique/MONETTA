@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 from ..extensions import db
 from ..models import Account, AppSettings, Category, Recurrence, Transaction
-from . import cards, debts
+from . import alerts, cards, debts, recovery, spending
 from .balances import ZERO, total_balance
 from .periods import month_bounds, shift_month, today_for
 from .recurrences import generate, generation_horizon
@@ -77,19 +77,24 @@ def _by_category(user_id: UUID, start: date, end: date) -> list[dict]:
     return [{"category": name or "Sem categoria", "total": total} for name, total in ordered]
 
 
-def _alerts(summary: dict, is_current: bool) -> list[dict]:
-    alerts = []
-    pct = summary["income_commitment_pct"]
-    if pct is not None and pct >= 80:
-        alerts.append({"level": "warning", "message": f"Você já comprometeu {pct}% da sua renda."})
-    if is_current and summary["projected_balance"] < 0:
-        alerts.append({"level": "critical", "message": "Seu saldo projetado está negativo."})
-    if is_current and summary["overdue_expenses"] > 0:
-        alerts.append({"level": "warning", "message": "Você tem despesas atrasadas."})
-    return alerts
+def monthly_capacity(user_id: UUID, settings: AppSettings, today: date) -> Decimal | None:
+    """
+    Quanto sobra da renda prevista do mês depois das despesas, da reserva e do mínimo de
+    segurança. Serve de teto para não sugerir pagamentos que comprometam contas essenciais.
+    """
+    summary = build_dashboard(user_id, settings, today.year, today.month)["summary"]
+    if summary["income_expected"] <= 0:
+        return None
+    left = (
+        summary["income_expected"] - summary["expenses_total"]
+        - recovery.effective_safety(user_id, settings) - settings.planned_reserve
+    )
+    return max(ZERO, left)
 
 
-def build_dashboard(user_id: UUID, settings: AppSettings, year: int, month: int) -> dict:
+def build_dashboard(
+    user_id: UUID, settings: AppSettings, year: int, month: int, sync_alerts: bool = False,
+) -> dict:
     today = today_for(settings)
     start, end = month_bounds(year, month)
     generate(user_id, generation_horizon(today, end))
@@ -117,11 +122,12 @@ def build_dashboard(user_id: UUID, settings: AppSettings, year: int, month: int)
     income_expected = income_received + salary_expected + extra_expected
     # Dívidas ficam fora de despesas, mas comprometem a renda do mesmo jeito.
     debt_paid = debts.paid_between(user_id, start, end)
-    debt_due = debts.due_in_month(user_id, start, end) if not is_past else ZERO
+    debt_due = recovery.debt_due(user_id, start, end) if not is_past else ZERO
     committed = expenses_total + debt_paid + debt_due
     commitment = round(committed / income_expected * 100) if income_expected > 0 else None
 
     balance = total_balance(user_id, end if is_past else today) if start <= today else None
+    safety = recovery.effective_safety(user_id, settings)
 
     summary: dict = {
         "balance": balance,
@@ -138,7 +144,7 @@ def build_dashboard(user_id: UUID, settings: AppSettings, year: int, month: int)
         "income_commitment_pct": commitment,
         # Dinheiro livre do mês por competência: não é saldo em conta.
         "free_money": income_expected - committed,
-        "safety_minimum": settings.safety_minimum,
+        "safety_minimum": safety,
         "overdue_expenses": ZERO,
         # Só faz sentido no mês corrente e nunca conta receita futura.
         "available_to_spend": None,
@@ -163,8 +169,10 @@ def build_dashboard(user_id: UUID, settings: AppSettings, year: int, month: int)
         summary["overdue_expenses"] = pending_expenses_until(user_id, start - timedelta(days=1))
         summary["overdue_invoices"] = cards.invoices_due_until(user_id, start - timedelta(days=1))
         summary["projected_balance"] = balance - open_until_month_end
-        summary["available_to_spend"] = max(
-            ZERO, balance - open_until_month_end - settings.safety_minimum
+        # Com salário cadastrado, vale o mesmo número do simulador: nunca dois "disponíveis".
+        until = spending.until_salary(user_id, settings, today)
+        summary["available_to_spend"] = until["available"] if until["has_salary"] else max(
+            ZERO, balance - open_until_month_end - settings.planned_reserve - safety
         )
 
     has_accounts = db.session.scalar(
@@ -176,6 +184,9 @@ def build_dashboard(user_id: UUID, settings: AppSettings, year: int, month: int)
     has_transactions = db.session.scalar(
         sa.select(sa.exists().where(Transaction.user_id == user_id))
     )
+    month_alerts = alerts.collect(user_id, settings, summary, today, year, month, is_current)
+    if sync_alerts:
+        alerts.sync(user_id, settings, month_alerts)
     return {
         "month": f"{year:04d}-{month:02d}",
         "is_current_month": is_current,
@@ -185,7 +196,6 @@ def build_dashboard(user_id: UUID, settings: AppSettings, year: int, month: int)
         "summary": summary,
         "history": _history(user_id, year, month),
         "by_category": _by_category(user_id, start, end),
-        "alerts": _alerts(summary, is_current)
-        + (cards.card_alerts(user_id, today) + debts.debt_alerts(user_id, today)
-           if is_current else []),
+        "recovery_active": recovery.active_plan(user_id) is not None,
+        "alerts": month_alerts,
     }
