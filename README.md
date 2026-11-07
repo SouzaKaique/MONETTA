@@ -31,6 +31,29 @@ cd frontend; npm start
 
 Abra http://localhost:4200.
 
+## Publicar
+
+O guia completo está em [docs/PUBLICACAO.md](docs/PUBLICACAO.md). O app instalável, o service
+worker e o atalho do iPhone exigem HTTPS.
+
+## Instalar no celular
+
+Abra o endereço publicado. No iPhone, use o Safari: **Compartilhar → Adicionar à Tela de Início**.
+No Android, use **Instalar app** no Chrome.
+
+## Atalho do iPhone
+
+Veja [docs/ATALHO-IPHONE.md](docs/ATALHO-IPHONE.md).
+
+## Backup
+
+- **Pelo app:** **Configurações → Backup** baixa um arquivo com seus dados.
+- **Banco completo, em desenvolvimento:** rode o script abaixo. Publicado, o backup é diário e automático.
+
+```powershell
+.\scripts\backup.ps1
+```
+
 ## Testes
 
 ```powershell

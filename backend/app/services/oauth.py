@@ -17,7 +17,7 @@ from flask import current_app
 
 from ..extensions import db
 from ..models import User, UserIdentity
-from .accounts import create_user
+from .accounts import create_user, registration_open
 
 
 class OAuthError(Exception):
@@ -169,6 +169,8 @@ def resolve_user(provider: Provider, claims: dict, name_hint: str | None = None)
 
     user = db.session.scalar(db.select(User).filter_by(email=email))
     if user is None:
+        if not registration_open():
+            raise OAuthError("cadastro_fechado")
         name = name_hint or claims.get("name") or email.split("@")[0]
         picture = claims.get("picture") if str(claims.get("picture", "")).startswith("https://") else None
         user = create_user(email=email, account_name=name[:80], email_verified=True,

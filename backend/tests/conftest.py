@@ -19,6 +19,9 @@ class Client:
     def post(self, *a, **k):
         return self.raw.post(*a, headers=HEADERS, **k)
 
+    def put(self, *a, **k):
+        return self.raw.put(*a, headers=HEADERS, **k)
+
     def patch(self, *a, **k):
         return self.raw.patch(*a, headers=HEADERS, **k)
 

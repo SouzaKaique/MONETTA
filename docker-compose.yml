@@ -1,0 +1,107 @@
+# Publicação do MONETTA. Veja docs/PUBLICACAO.md.
+# COMPOSE_PROFILES escolhe a entrada: "caddy" (servidor com portas 80 e 443) ou "tunnel" (Cloudflare).
+name: monetta
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: monetta
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD}
+      POSTGRES_DB: monetta
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks: [data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U monetta -d monetta"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      ALLOW_LOCAL: ${ALLOW_LOCAL:-0}
+      HOST: 0.0.0.0
+      PORT: "5000"
+      # O app só é alcançável pelo proxy, nas redes abaixo.
+      TRUSTED_PROXY: "*"
+      DATABASE_URL: postgresql+psycopg://monetta:${DB_PASSWORD}@db:5432/monetta
+      SECRET_KEY: ${SECRET_KEY:?defina SECRET_KEY}
+      PUBLIC_URL: https://${DOMAIN:?defina DOMAIN}
+      REGISTRATION_OPEN: ${REGISTRATION_OPEN:-0}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      APPLE_CLIENT_ID: ${APPLE_CLIENT_ID:-}
+      APPLE_TEAM_ID: ${APPLE_TEAM_ID:-}
+      APPLE_KEY_ID: ${APPLE_KEY_ID:-}
+      APPLE_PRIVATE_KEY_PATH: ${APPLE_PRIVATE_KEY_PATH:-}
+    volumes:
+      - ./secrets:/app/secrets:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [web, data]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+  backup:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    entrypoint: ["sh", "/backup.sh"]
+    environment:
+      PGPASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ./deploy/backup.sh:/backup.sh:ro
+      - ./backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [data]
+
+  caddy:
+    image: caddy:2-alpine
+    profiles: [caddy]
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+    networks: [web]
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    profiles: [tunnel]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
+    depends_on:
+      app:
+        condition: service_healthy
+    networks: [web]
+
+networks:
+  web:
+  # Sem saída para a internet: o banco só conversa com o app e com o backup.
+  data:
+    internal: true
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:

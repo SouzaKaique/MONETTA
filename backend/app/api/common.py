@@ -5,6 +5,7 @@ from flask import abort, g, jsonify, request
 from marshmallow import Schema, ValidationError
 
 from ..models import User
+from ..services.alerts import prefs_for
 from ..services.security import session_from_request
 
 
@@ -45,6 +46,10 @@ def user_payload(user: User) -> dict:
         "has_password": user.password_hash is not None,
         "providers": sorted(i.provider for i in user.identities),
         "theme": user.settings.theme,
+        "safety_minimum": user.settings.safety_minimum,
+        "debt_strategy": user.settings.debt_strategy,
+        "planned_reserve": user.settings.planned_reserve,
+        "alert_prefs": prefs_for(user.settings),
         "created_at": user.created_at.isoformat(),
     }
 

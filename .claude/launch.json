@@ -12,6 +12,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "frontend", "start"],
       "port": 4200
+    },
+    {
+      "name": "monetta-prod",
+      "runtimeExecutable": "backend/.venv/Scripts/python.exe",
+      "runtimeArgs": ["backend/serve.py"],
+      "port": 5000
     }
   ]
 }

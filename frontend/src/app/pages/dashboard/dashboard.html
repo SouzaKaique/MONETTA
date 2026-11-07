@@ -3,40 +3,42 @@
     <h1 class="page-title">Olá, {{ firstName() }}</h1>
     <p class="muted mb-0">Sua situação financeira do mês.</p>
   </div>
-  @if (data()) {
-    <div class="month-picker" role="group" aria-label="Selecionar mês">
-      <button type="button" class="btn btn-quiet" aria-label="Mês anterior" [disabled]="loading()" (click)="go(-1)">
-        <i class="bi bi-chevron-left" aria-hidden="true"></i>
-      </button>
-      <span class="month-label" aria-live="polite">{{ monthLabel() }}</span>
-      <button type="button" class="btn btn-quiet" aria-label="Próximo mês" [disabled]="loading()" (click)="go(1)">
-        <i class="bi bi-chevron-right" aria-hidden="true"></i>
-      </button>
-    </div>
-  }
+  <app-month-picker [month]="month()" (monthChange)="month.set($event)" />
 </header>
 
 @if (failed()) {
   <div class="notice notice-critical mt-4" role="alert">
     <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
     <span>Não foi possível carregar o dashboard.
-      <button type="button" class="link-btn" (click)="load(data()?.month)">Tentar de novo</button>
+      <button type="button" class="link-btn" (click)="load(month())">Tentar de novo</button>
     </span>
   </div>
 }
 
 @if (data(); as d) {
-  @if (!d.has_data) {
+  @if (!d.has_accounts) {
     <div class="notice notice-info mt-4">
       <i class="bi bi-info-circle" aria-hidden="true"></i>
-      <span>Sua conta está criada e ainda não tem lançamentos. O cadastro de contas, salário e despesas chega na Etapa 2.</span>
+      <span>Primeiro passo: <a routerLink="/configuracoes">cadastre sua conta</a> com o saldo de hoje.</span>
+    </div>
+  } @else if (!d.has_salary) {
+    <div class="notice notice-info mt-4">
+      <i class="bi bi-info-circle" aria-hidden="true"></i>
+      <span>Agora <a routerLink="/receitas">cadastre seu salário</a> para o sistema prever sua renda.</span>
     </div>
   }
 
   @for (alert of d.alerts; track alert.message) {
     <div class="notice mt-3" [class.notice-critical]="alert.level === 'critical'"
-         [class.notice-warning]="alert.level === 'warning'" role="status">
-      <i class="bi bi-exclamation-triangle" aria-hidden="true"></i><span>{{ alert.message }}</span>
+         [class.notice-warning]="alert.level === 'warning'"
+         [class.notice-success]="alert.level === 'info'" role="status">
+      <i class="bi" [class.bi-check-circle]="alert.level === 'info'"
+         [class.bi-exclamation-triangle]="alert.level !== 'info'" aria-hidden="true"></i>
+      @if (alert.link) {
+        <a class="alert-link" [routerLink]="alert.link">{{ alert.message }}</a>
+      } @else {
+        <span>{{ alert.message }}</span>
+      }
     </div>
   }
 
@@ -45,7 +47,7 @@
       @if (d.is_current_month) {
         <p class="hero-label">Disponível para gastar</p>
         <p class="hero-value display money">{{ money(d.summary.available_to_spend) }}</p>
-        <p class="hero-note">Já descontadas as despesas pendentes e o mínimo de segurança.</p>
+        <p class="hero-note">Já descontados contas, faturas, dívidas, reserva e mínimo de segurança.</p>
       } @else {
         <p class="hero-label">{{ d.summary.balance === null ? 'Mês futuro' : 'Saldo ao fim do mês' }}</p>
         <p class="hero-value display money">{{ money(d.summary.balance) }}</p>
@@ -71,6 +73,16 @@
       </div>
     </dl>
   </section>
+
+  @if (d.recovery_active) {
+    <a class="recovery-banner mt-3" routerLink="/recuperacao">
+      <i class="bi bi-shield-check" aria-hidden="true"></i>
+      <span>Modo Recuperação ativo</span>
+      <i class="bi bi-chevron-right ms-auto" aria-hidden="true"></i>
+    </a>
+  }
+
+  @if (d.is_current_month) { <app-until-salary /> }
 
   <section class="kpis" aria-label="Indicadores do mês">
     @for (kpi of kpis(); track kpi.label) {
@@ -99,8 +111,38 @@
           }
         </ul>
       } @else {
-        <p class="subtle mb-0">Nenhuma despesa em {{ monthLabel() }}.</p>
+        <p class="subtle mb-0">Nenhuma despesa neste mês.</p>
       }
+    </article>
+  </section>
+
+  <section class="trends" aria-label="Evolução dos últimos meses">
+    <article class="card-m">
+      <h2 class="card-title-m mb-2">Evolução do saldo</h2>
+      <app-trend-chart title="Evolução do saldo" [height]="160" [labels]="labels()" [series]="balanceSeries()" />
+    </article>
+    <article class="card-m">
+      <h2 class="card-title-m mb-2">Evolução das dívidas</h2>
+      <app-trend-chart title="Evolução das dívidas" [height]="160" [labels]="labels()" [series]="debtSeries()" />
+    </article>
+    <article class="card-m">
+      <h2 class="card-title-m mb-2">Comprometimento mensal</h2>
+      <app-trend-chart title="Comprometimento mensal" format="pct" [height]="160" [labels]="labels()" [series]="commitmentSeries()" />
+    </article>
+    <article class="card-m">
+      <h2 class="card-title-m mb-2">Gastos com cartões</h2>
+      <app-trend-chart title="Gastos com cartões" kind="bar" [height]="160" [labels]="labels()" [series]="cardSeries()" />
+    </article>
+    <article class="card-m">
+      <h2 class="card-title-m mb-3">Distribuição da renda</h2>
+      <ul class="categories">
+        @for (part of d.distribution; track part.key) {
+          <li>
+            <div class="cat-row"><span>{{ part.label }}</span><span class="money">{{ money(part.amount) }}</span></div>
+            <div class="cat-track"><span [style.width.%]="partWidth(part.amount)"></span></div>
+          </li>
+        }
+      </ul>
     </article>
   </section>
 } @else if (loading()) {

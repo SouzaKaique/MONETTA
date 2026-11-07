@@ -1,0 +1,135 @@
+<header class="page-head">
+  <div>
+    <h1 class="page-title">Relatórios</h1>
+    <p class="muted mb-0">Como o seu dinheiro se comportou.</p>
+  </div>
+  <div class="controls">
+    <div class="segmented" role="group" aria-label="Período">
+      @for (p of periods; track p.value) {
+        <button type="button" [class.active]="period() === p.value" [attr.aria-pressed]="period() === p.value"
+                (click)="period.set(p.value)">{{ p.label }}</button>
+      }
+    </div>
+    <div class="picker">
+      <button type="button" class="btn btn-quiet" aria-label="Período anterior" (click)="go(-1)">
+        <i class="bi bi-chevron-left" aria-hidden="true"></i>
+      </button>
+      <span class="label" aria-live="polite">{{ label() }}</span>
+      <button type="button" class="btn btn-quiet" aria-label="Próximo período" (click)="go(1)">
+        <i class="bi bi-chevron-right" aria-hidden="true"></i>
+      </button>
+    </div>
+  </div>
+</header>
+
+@if (error()) {
+  <div class="notice notice-critical mt-3" role="alert">
+    <i class="bi bi-exclamation-circle" aria-hidden="true"></i><span>{{ error() }}</span>
+  </div>
+}
+
+@if (data(); as d) {
+  <section class="stat-grid" aria-label="Totais do período">
+    <article class="card-m stat"><h2>Receitas</h2><p class="money">{{ money(d.totals.income) }}</p></article>
+    <article class="card-m stat"><h2>Despesas</h2><p class="money">{{ money(d.totals.expenses) }}</p><small>{{ money(d.totals.cards) }} no cartão</small></article>
+    <article class="card-m stat"><h2>Pago em dívidas</h2><p class="money">{{ money(d.totals.debt_paid) }}</p></article>
+    <article class="card-m stat"><h2>Guardado</h2><p class="money">{{ money(d.totals.saved) }}</p></article>
+    <article class="card-m stat">
+      <h2>Economia</h2>
+      <p class="money">{{ d.totals.savings_pct === null ? '—' : d.totals.savings_pct + '%' }}</p>
+      <small>{{ money(d.totals.result) }} no período</small>
+    </article>
+  </section>
+
+  @if (d.insights.length) {
+    <section class="card-m mt-3">
+      <h2 class="card-title-m mb-2">Destaques</h2>
+      <ul class="insights">
+        @for (tip of d.insights; track tip) { <li>{{ tip }}</li> }
+      </ul>
+    </section>
+  }
+
+  <div class="charts">
+    <section class="card-m">
+      <h2 class="card-title-m mb-2">Receitas e despesas</h2>
+      <app-trend-chart title="Receitas e despesas" kind="bar" [labels]="labels()" [series]="flow()" />
+    </section>
+    <section class="card-m">
+      <h2 class="card-title-m mb-2">Evolução do saldo</h2>
+      <app-trend-chart title="Evolução do saldo" [labels]="labels()" [series]="balance()" />
+    </section>
+    <section class="card-m">
+      <h2 class="card-title-m mb-2">Gastos com cartão</h2>
+      <app-trend-chart title="Gastos com cartão" kind="bar" [labels]="labels()" [series]="cards()" />
+    </section>
+    <section class="card-m">
+      <h2 class="card-title-m mb-2">Evolução das dívidas</h2>
+      <app-trend-chart title="Evolução das dívidas" [labels]="labels()" [series]="debts()" />
+    </section>
+    <section class="card-m">
+      <h2 class="card-title-m mb-2">Percentual de economia</h2>
+      <app-trend-chart title="Percentual de economia" format="pct" [labels]="labels()" [series]="savings()" />
+    </section>
+    <section class="card-m">
+      <h2 class="card-title-m mb-3">Distribuição da renda</h2>
+      <ul class="bars">
+        @for (part of d.distribution; track part.key) {
+          <li>
+            <div class="bar-row"><span>{{ part.label }}</span><span class="money">{{ money(part.amount) }}</span></div>
+            <div class="track"><span [style.width.%]="partWidth(part.amount)"></span></div>
+          </li>
+        }
+      </ul>
+    </section>
+    <section class="card-m">
+      <h2 class="card-title-m mb-3">Gastos por categoria</h2>
+      @if (!d.categories.length) { <p class="subtle mb-0">Nenhuma despesa no período.</p> }
+      <ul class="bars">
+        @for (c of d.categories; track c.category) {
+          <li>
+            <div class="bar-row"><span>{{ c.category }}</span><span class="money">{{ money(c.total) }}</span></div>
+            <div class="track"><span [style.width.%]="categoryWidth(c.total)"></span></div>
+          </li>
+        }
+      </ul>
+    </section>
+    <section class="card-m">
+      <h2 class="card-title-m mb-3">Progresso da wishlist</h2>
+      @if (!d.wishlist.length) { <p class="subtle mb-0">Nenhuma meta em aberto.</p> }
+      <ul class="bars">
+        @for (w of d.wishlist; track w.name) {
+          <li>
+            <div class="bar-row"><span>{{ w.name }}</span><span class="money">{{ money(w.saved) }} de {{ money(w.target) }}</span></div>
+            <div class="track"><span [style.width.%]="w.pct"></span></div>
+          </li>
+        }
+      </ul>
+    </section>
+  </div>
+
+  <section class="card-m mt-3">
+    <h2 class="card-title-m mb-2">Histórico de pagamentos de dívidas</h2>
+    @if (!d.debt_payments.length) { <p class="subtle mb-0">Nenhum pagamento no período.</p> }
+    <ul class="rows">
+      @for (p of d.debt_payments; track $index) {
+        <li class="row-item">
+          <div class="row-main"><span>{{ p.debt }}</span><span class="row-meta">{{ date(p.date) }}</span></div>
+          <span class="row-amount money">{{ money(p.amount) }}</span>
+        </li>
+      }
+    </ul>
+  </section>
+
+  <section class="card-m mt-3">
+    <h2 class="card-title-m mb-1">Exportar em CSV</h2>
+    <p class="subtle">Os arquivos abrem no Excel e no Google Planilhas. Dívidas e wishlist saem completas; os demais seguem o período escolhido.</p>
+    <div class="downloads">
+      @for (item of downloads; track item.key) {
+        <a class="btn btn-quiet btn-sm" [href]="exportUrl(item.key, item.period)" download>
+          <i class="bi bi-download me-1" aria-hidden="true"></i>{{ item.label }}
+        </a>
+      }
+    </div>
+  </section>
+}

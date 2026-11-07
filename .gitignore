@@ -1,5 +1,9 @@
 # Segredos e dados locais — nunca versionar
 .env
+.env.*
+!.env.example
+!.env.production.example
+secrets/
 .pgdata/
 backups/
 *.log

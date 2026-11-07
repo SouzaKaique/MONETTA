@@ -1,0 +1,201 @@
+<a class="back subtle" routerLink="/cartoes"><i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Cartões</a>
+
+@if (error()) {
+  <div class="notice notice-critical mt-2" role="alert">
+    <i class="bi bi-exclamation-circle" aria-hidden="true"></i><span>{{ error() }}</span>
+  </div>
+}
+
+@if (card(); as c) {
+  <header class="page-head mt-2">
+    <div>
+      <h1 class="page-title">{{ c.name }}</h1>
+      <p class="muted mb-0">
+        @if (c.institution) { {{ c.institution }} · }
+        fecha dia {{ c.closing_day }}, vence dia {{ c.due_day }}
+      </p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      @if (c.active) {
+        <button type="button" class="btn btn-brand" (click)="buying.set(true)">Nova compra</button>
+      }
+      <button type="button" class="btn btn-quiet" (click)="editing.set(true)">Editar</button>
+      <button type="button" class="btn btn-quiet" (click)="toggleActive(c)">{{ c.active ? 'Desativar' : 'Reativar' }}</button>
+      @if (deleting() === c.id) {
+        <button type="button" class="btn btn-danger-quiet" (click)="removeCard(c)">Excluir?</button>
+      } @else {
+        <button type="button" class="icon-btn" title="Excluir cartão" aria-label="Excluir cartão" (click)="deleting.set(c.id)">
+          <i class="bi bi-trash3" aria-hidden="true"></i>
+        </button>
+      }
+    </div>
+  </header>
+
+  <section class="card-m mt-3">
+    <div class="limit-head">
+      <span class="muted">Limite utilizado</span>
+      <span class="money"><strong>{{ c.usage_pct ?? 0 }}%</strong></span>
+    </div>
+    <div class="usage" [class.high]="(c.usage_pct ?? 0) >= 80" role="meter" aria-label="Limite utilizado"
+         [attr.aria-valuenow]="usageWidth()" aria-valuemin="0" aria-valuemax="100">
+      <span [style.width.%]="usageWidth()"></span>
+    </div>
+    <dl class="figures">
+      <div><dt>Limite total</dt><dd class="money">{{ money(c.credit_limit) }}</dd></div>
+      <div><dt>Disponível</dt><dd class="money">{{ money(c.available) }}</dd></div>
+      <div><dt>Fatura atual</dt><dd class="money">{{ money(c.current_invoice) }}</dd></div>
+      <div><dt>Faturas futuras</dt><dd class="money">{{ money(c.future_invoices) }}</dd></div>
+      <div><dt>Parcelas futuras</dt><dd class="money">{{ c.remaining_installments }}</dd></div>
+      <div><dt>Próximo vencimento</dt><dd class="money">{{ date(c.next_due_date) }}</dd></div>
+    </dl>
+  </section>
+
+  <section class="card-m mt-3">
+    <h2 class="card-title-m mb-2">Faturas</h2>
+    @if (!c.invoices.length) {
+      <p class="subtle mb-0">Nenhuma fatura ainda. Registre uma compra para começar.</p>
+    } @else {
+      <div class="invoice-tabs" role="tablist" aria-label="Faturas">
+        @for (i of c.invoices; track i.id) {
+          <button type="button" role="tab" [class.active]="selectedId() === i.id"
+                  [attr.aria-selected]="selectedId() === i.id" (click)="selectedId.set(i.id)">
+            <span>{{ monthShort(i.month) }}/{{ i.month.slice(2, 4) }}</span>
+            <small class="money">{{ money(i.total) }}</small>
+            <span class="tag {{ status[i.status].tag }}">{{ status[i.status].label }}</span>
+          </button>
+        }
+      </div>
+    }
+
+    @if (invoice(); as inv) {
+      <div class="invoice-body fade-up">
+        <div class="section-head mt-3">
+          <h3 class="invoice-title">Fatura de {{ monthLabel(inv.month) }}</h3>
+          @if (inv.status !== 'paid') {
+            <button type="button" class="btn btn-brand btn-sm" (click)="openPay()">Pagar</button>
+          }
+        </div>
+        <dl class="figures">
+          <div><dt>Fechamento</dt><dd>{{ date(inv.closing_date) }}</dd></div>
+          <div><dt>Vencimento</dt><dd>{{ date(inv.due_date) }}</dd></div>
+          <div><dt>Total</dt><dd class="money">{{ money(inv.total) }}</dd></div>
+          <div><dt>Pago</dt><dd class="money">{{ money(inv.paid) }}</dd></div>
+          <div><dt>Restante</dt><dd class="money">{{ money(inv.remaining) }}</dd></div>
+        </dl>
+
+        <ul class="rows mt-2">
+          @for (item of inv.installments; track item.id) {
+            <li class="row-item">
+              <div class="row-main">
+                <strong>{{ item.description }}</strong>
+                <span class="row-meta">
+                  {{ date(item.purchase_date) }}
+                  @if (item.count > 1) { · parcela {{ item.number }} de {{ item.count }} }
+                  @if (item.category_name) { · {{ item.category_name }} }
+                </span>
+              </div>
+              <span class="row-amount money">{{ money(item.amount) }}</span>
+            </li>
+          }
+        </ul>
+
+        @if (inv.payments.length) {
+          <h3 class="invoice-title mt-3">Pagamentos</h3>
+          <ul class="rows">
+            @for (p of inv.payments; track p.id) {
+              <li class="row-item">
+                <div class="row-main">
+                  <strong>{{ date(p.paid_on) }}</strong>
+                  <span class="row-meta">{{ p.account_name }}</span>
+                </div>
+                <span class="row-amount money">{{ money(p.amount) }}</span>
+                <div class="row-actions">
+                  @if (deleting() === p.id) {
+                    <button type="button" class="btn btn-sm btn-danger-quiet" (click)="removePayment(p.id)">Remover?</button>
+                  } @else {
+                    <button type="button" class="icon-btn" title="Remover pagamento" aria-label="Remover pagamento" (click)="deleting.set(p.id)">
+                      <i class="bi bi-trash3" aria-hidden="true"></i>
+                    </button>
+                  }
+                </div>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    }
+  </section>
+
+  <div class="two-col mt-3">
+    <section class="card-m">
+      <h2 class="card-title-m mb-2">Compras</h2>
+      @if (!purchases().length) { <p class="subtle mb-0">Nenhuma compra registrada.</p> }
+      <ul class="rows">
+        @for (p of purchases(); track p.id) {
+          <li class="row-item">
+            <div class="row-main">
+              <strong>{{ p.description }}</strong>
+              <span class="row-meta">
+                {{ date(p.purchase_date) }}
+                @if (p.installment_count > 1) { · {{ p.installment_count }}x }
+                @if (p.category_name) { · {{ p.category_name }} }
+              </span>
+            </div>
+            <span class="row-amount money">{{ money(p.total_amount) }}</span>
+            <div class="row-actions">
+              @if (deleting() === p.id) {
+                <button type="button" class="btn btn-sm btn-danger-quiet" (click)="removePurchase(p)">Excluir?</button>
+              } @else {
+                <button type="button" class="icon-btn" title="Excluir" aria-label="Excluir" (click)="deleting.set(p.id)">
+                  <i class="bi bi-trash3" aria-hidden="true"></i>
+                </button>
+              }
+            </div>
+          </li>
+        }
+      </ul>
+    </section>
+
+    <section class="card-m">
+      <h2 class="card-title-m mb-3">Gastos por fatura</h2>
+      <ul class="spending">
+        @for (s of c.spending; track s.month) {
+          <li>
+            <div class="spend-row"><span>{{ monthShort(s.month) }}</span><span class="money">{{ money(s.total) }}</span></div>
+            <div class="spend-track"><span [style.width.%]="barWidth(s.total)"></span></div>
+          </li>
+        }
+      </ul>
+    </section>
+  </div>
+
+  @if (editing()) { <app-card-form [card]="c" (closed)="editing.set(false)" /> }
+  @if (buying()) { <app-purchase-form [cardId]="c.id" (closed)="buying.set(false)" /> }
+
+  @if (paying()) {
+    <app-dialog #payBox heading="Pagar fatura" (closed)="paying.set(false)">
+      <p class="subtle">O pagamento sai da conta escolhida. Ele quita a fatura e não conta como nova despesa.</p>
+      <form [formGroup]="payForm" (ngSubmit)="pay(payBox)" novalidate>
+        <div class="mb-3">
+          <label class="form-label" for="pay-amount">Valor</label>
+          <input id="pay-amount" class="form-control money" formControlName="amount" inputmode="decimal" />
+        </div>
+        <div class="grid-2 mb-3">
+          <div>
+            <label class="form-label" for="pay-date">Data</label>
+            <input id="pay-date" class="form-control" type="date" formControlName="paid_on" [max]="today" />
+          </div>
+          <div>
+            <label class="form-label" for="pay-account">Conta</label>
+            <select id="pay-account" class="form-select" formControlName="account_id">
+              <option value="">Escolha a conta</option>
+              @for (a of accounts(); track a.id) { <option [value]="a.id">{{ a.name }}</option> }
+            </select>
+          </div>
+        </div>
+        @if (payError()) { <p class="field-error mb-2" role="alert">{{ payError() }}</p> }
+        <button type="submit" class="btn btn-brand w-100" [disabled]="busy()">Registrar pagamento</button>
+      </form>
+    </app-dialog>
+  }
+}

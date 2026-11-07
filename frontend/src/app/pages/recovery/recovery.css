@@ -1,0 +1,52 @@
+.back { text-decoration: none; }
+
+.how, .tips { display: grid; gap: 0.35rem; margin: 0 0 0.75rem; padding-left: 1.1rem; }
+.tips { margin-bottom: 0; }
+
+.hero {
+  background: var(--hero-bg);
+  border-radius: var(--radius);
+  color: var(--hero-ink);
+  display: grid;
+  gap: 2rem;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  margin-top: 1rem;
+  padding: 2rem;
+}
+.hero-label { color: var(--hero-ink-2); font-weight: 500; margin: 0; }
+.hero-value { font-size: clamp(2.25rem, 6vw, 3.25rem); line-height: 1.1; margin: 0.4rem 0 0.8rem; }
+.hero-note { color: var(--hero-ink-2); font-size: 0.8125rem; margin: 0.4rem 0 0; }
+.meter { background: var(--hero-line); border-radius: 3px; height: 6px; overflow: hidden; }
+.meter span { background: var(--hero-ink); display: block; height: 100%; transition: width 300ms ease-out; }
+
+.hero-side {
+  border-left: 1px solid var(--hero-line);
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding-left: 2rem;
+}
+.hero-side dt { color: var(--hero-ink-2); font-size: 0.8125rem; font-weight: 400; }
+.hero-side dd { font-weight: 500; margin: 0; }
+.first-up::first-letter { text-transform: uppercase; }
+
+.two-col { display: grid; gap: 0.75rem; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+
+.figures { display: grid; gap: 0.75rem 1rem; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin: 0; }
+.figures dt { color: var(--ink-3); font-size: 0.75rem; font-weight: 400; }
+.figures dd { font-weight: 600; margin: 0; }
+.figures dd.over { color: var(--negative); }
+
+.evolution { display: grid; gap: 0.7rem; list-style: none; margin: 0; padding: 0; }
+.evo-row { display: flex; font-size: 0.875rem; justify-content: space-between; margin-bottom: 0.2rem; }
+.evo-track { background: var(--surface-2); border-radius: 3px; height: 6px; overflow: hidden; }
+.evo-track span { background: var(--series-1); border-radius: 3px; display: block; height: 100%; }
+
+.inline { display: flex; gap: 0.5rem; max-width: 340px; }
+.inline .form-control { flex: 1; min-width: 0; }
+
+@media (max-width: 767.98px) {
+  .hero { gap: 1.25rem; grid-template-columns: 1fr; padding: 1.5rem; }
+  .hero-side { border-left: 0; border-top: 1px solid var(--hero-line); padding: 1.25rem 0 0; }
+  .two-col { grid-template-columns: minmax(0, 1fr); }
+}

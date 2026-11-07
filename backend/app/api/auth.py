@@ -7,8 +7,8 @@ from marshmallow import Schema, fields, validate
 from ..extensions import db
 from ..models import User
 from ..models.common import utcnow
-from ..services import oauth
-from ..services.accounts import create_user
+from ..services import oauth, ratelimit
+from ..services.accounts import create_user, registration_open
 from ..services.security import (
     end_session_cookie, hash_password, revoke_all_sessions,
     session_from_request, start_session, verify_password,
@@ -18,6 +18,8 @@ from .common import error, load_body, login_required, user_payload
 bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
 MAX_FAILED_LOGINS = 5
+LOGIN_PER_MINUTE = 20
+REGISTER_PER_MINUTE = 10
 LOCK_MINUTES = 15
 PasswordField = fields.String(required=True, validate=validate.Length(min=10, max=128))
 
@@ -35,11 +37,16 @@ class LoginSchema(Schema):
 
 @bp.get("/providers")
 def providers():
-    return jsonify({name: oauth.is_enabled(name) for name in oauth.PROVIDERS})
+    enabled = {name: oauth.is_enabled(name) for name in oauth.PROVIDERS}
+    return jsonify(enabled | {"registration": registration_open()})
 
 
 @bp.post("/register")
 def register():
+    if not ratelimit.allow(f"register:{request.remote_addr}", REGISTER_PER_MINUTE):
+        return error("Muitas tentativas. Aguarde um minuto.", 429)
+    if not registration_open():
+        return error("O cadastro de novas contas está fechado.", 403)
     data = load_body(RegisterSchema())
     email = data["email"].strip().lower()
     if db.session.scalar(db.select(User.id).filter_by(email=email)):
@@ -56,6 +63,8 @@ def register():
 
 @bp.post("/login")
 def login():
+    if not ratelimit.allow(f"login:{request.remote_addr}", LOGIN_PER_MINUTE):
+        return error("Muitas tentativas. Aguarde um minuto.", 429)
     data = load_body(LoginSchema())
     user = db.session.scalar(db.select(User).filter_by(email=data["email"].strip().lower()))
     invalid = error("E-mail ou senha incorretos.", 401)

@@ -24,7 +24,36 @@
   width: 248px;
 }
 
-.sidebar .wordmark { padding: 0 0.75rem; }
+.side-head { align-items: center; display: flex; justify-content: space-between; padding: 0 0.4rem 0 0.75rem; }
+
+.bell {
+  align-items: center;
+  border-radius: 50%;
+  color: var(--ink-2);
+  display: inline-flex;
+  font-size: 1.1rem;
+  height: 36px;
+  justify-content: center;
+  position: relative;
+  text-decoration: none;
+  width: 36px;
+}
+.bell:hover { background: var(--surface-2); color: var(--ink); }
+.badge-count {
+  background: var(--negative);
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.625rem;
+  font-weight: 600;
+  line-height: 1;
+  min-width: 16px;
+  padding: 3px 4px;
+  position: absolute;
+  right: 0;
+  text-align: center;
+  top: 0;
+}
+.top-actions { align-items: center; display: flex; gap: 0.35rem; }
 .sidebar nav { display: flex; flex: 1; flex-direction: column; gap: 2px; }
 
 .nav-link-m {
@@ -61,10 +90,43 @@ main { margin: 0 auto; max-width: 1180px; padding: 2rem; }
 
 .topbar, .bottom-nav, .sheet, .sheet-backdrop { display: none; }
 
+.quick-add {
+  align-items: center;
+  background: var(--brand);
+  border: 0;
+  border-radius: 999px;
+  bottom: 1.5rem;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 18%);
+  color: var(--brand-ink);
+  display: flex;
+  font-weight: 500;
+  gap: 0.45rem;
+  padding: 0.7rem 1.1rem;
+  position: fixed;
+  right: 1.5rem;
+  z-index: 15;
+}
+.quick-add:hover { filter: brightness(1.15); }
+main { padding-bottom: 5rem; }
+
 @media (max-width: 991.98px) {
   .sidebar { display: none; }
   .content { margin-left: 0; }
   main { padding: 1rem 1rem calc(5.5rem + env(safe-area-inset-bottom)); }
+
+  /* No celular o registro rápido fica na barra inferior, sem cobrir o conteúdo. */
+  .quick-add { display: none; }
+  .bottom-nav .nav-add {
+    align-self: center;
+    background: var(--brand);
+    border-radius: 50%;
+    color: var(--brand-ink);
+    font-size: 1.25rem;
+    height: 46px;
+    justify-self: center;
+    min-height: 0;
+    width: 46px;
+  }
 
   .topbar {
     align-items: center;

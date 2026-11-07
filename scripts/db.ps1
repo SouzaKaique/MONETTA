@@ -17,12 +17,12 @@ $port   = 5433
 function Start-Db {
   $a = @('-D', "`"$data`"", '-o', "`"-p $port -h 127.0.0.1`"", '-l', "`"$log`"", 'start')
   Start-Process -FilePath "$bin\pg_ctl.exe" -ArgumentList $a -WindowStyle Hidden
-  foreach ($i in 1..30) {
+  foreach ($i in 1..120) {
     & "$bin\pg_isready.exe" -q -h 127.0.0.1 -p $port
     if ($LASTEXITCODE -eq 0) { return }
     Start-Sleep -Seconds 1
   }
-  throw 'PostgreSQL nao respondeu em 30s; veja .pgdata\server.log'
+  throw 'PostgreSQL nao respondeu em 2 minutos; veja .pgdata\server.log'
 }
 
 function New-Secret([int]$bytes) {

@@ -1,0 +1,5 @@
+# O certificado HTTPS é obtido e renovado automaticamente.
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:5000
+}

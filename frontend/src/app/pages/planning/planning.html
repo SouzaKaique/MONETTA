@@ -1,0 +1,139 @@
+<header class="page-head">
+  <div>
+    <h1 class="page-title">Planejamento</h1>
+    <p class="muted mb-0">Para onde vai a renda de cada mês.</p>
+  </div>
+  <app-month-picker [month]="month()" (monthChange)="month.set($event)" />
+</header>
+
+@if (error()) {
+  <div class="notice notice-critical mt-3" role="alert">
+    <i class="bi bi-exclamation-circle" aria-hidden="true"></i><span>{{ error() }}</span>
+  </div>
+}
+
+<a class="recovery-link mt-3" routerLink="/recuperacao">
+  <i class="bi bi-shield-check" aria-hidden="true"></i>
+  <span>
+    <strong>Modo Recuperação Financeira</strong>
+    <small>{{ recoveryActive() ? 'Ativo. Ver progresso.' : 'Priorize quitar dívidas e reorganizar o mês.' }}</small>
+  </span>
+  <i class="bi bi-chevron-right ms-auto" aria-hidden="true"></i>
+</a>
+
+@if (data(); as d) {
+  <section class="card-m mt-3">
+    <div class="limit-head">
+      <span class="muted">Renda comprometida</span>
+      <strong class="money">{{ d.commitment_pct === null ? '—' : d.commitment_pct + '%' }}</strong>
+    </div>
+    <div class="bar bar-lg {{ commitmentLevel() }}" role="meter" aria-label="Renda comprometida"
+         [attr.aria-valuenow]="commitmentWidth()" aria-valuemin="0" aria-valuemax="100">
+      <span [style.width.%]="commitmentWidth()"></span>
+    </div>
+    <dl class="figures">
+      <div><dt>Receita prevista</dt><dd class="money">{{ money(d.income_expected) }}</dd></div>
+      <div><dt>Receita recebida</dt><dd class="money">{{ money(d.income_received) }}</dd></div>
+      <div><dt>Despesas pagas</dt><dd class="money">{{ money(d.expenses_paid) }}</dd></div>
+      <div><dt>Despesas pendentes</dt><dd class="money">{{ money(d.expenses_pending) }}</dd></div>
+      <div><dt>Parcelas de cartão</dt><dd class="money">{{ money(d.card_commitment) }}</dd></div>
+      <div><dt>Próximos 3 meses</dt><dd class="money">{{ money(d.future_commitments) }}</dd></div>
+      <div><dt>Valor reservado</dt><dd class="money">{{ money(d.reserved) }}</dd></div>
+      <div><dt>Guardado na wishlist</dt><dd class="money">{{ money(d.saved_total) }}</dd></div>
+      <div><dt>Saldo projetado</dt><dd class="money">{{ money(d.projected_balance) }}</dd></div>
+      <div><dt>Realmente disponível</dt><dd class="money">{{ money(d.available) }}</dd></div>
+    </dl>
+  </section>
+
+  <div class="two-col mt-3">
+    <section class="card-m">
+      <h2 class="card-title-m mb-3">Distribuição da renda</h2>
+      <ul class="parts">
+        @for (part of d.distribution; track part.key) {
+          <li>
+            <div class="part-row">
+              <span>{{ part.label }}</span>
+              <span class="money">{{ money(part.amount) }}</span>
+            </div>
+            <div class="bar" [class.over]="part.key === 'free' && +(part.amount ?? 0) < 0">
+              <span [style.width.%]="partWidth(part.amount)"></span>
+            </div>
+          </li>
+        }
+      </ul>
+    </section>
+
+    <section class="card-m">
+      <h2 class="card-title-m mb-1">Reserva mensal</h2>
+      <p class="subtle">Quanto você pretende guardar por mês. Não é despesa, mas sai do que pode ser gasto.</p>
+      <form class="inline" (submit)="$event.preventDefault(); saveReserve()">
+        <input class="form-control money" [formControl]="reserve" inputmode="decimal"
+               placeholder="0,00" aria-label="Reserva mensal" />
+        <button type="submit" class="btn btn-quiet">Salvar</button>
+      </form>
+      @if (reserveSaved()) { <p class="field-ok">Reserva atualizada.</p> }
+    </section>
+  </div>
+
+  <section class="card-m mt-3">
+    <div class="section-head">
+      <h2 class="card-title-m">Limites por categoria</h2>
+      @if (canEdit()) {
+        <button type="button" class="btn btn-quiet btn-sm" (click)="openBudget(null)">
+          <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Limite
+        </button>
+      }
+    </div>
+    @if (!d.budgets.length) {
+      <p class="subtle mb-0">Defina limites para acompanhar quanto ainda pode gastar em cada categoria.</p>
+    }
+    <ul class="rows">
+      @for (row of d.budgets; track row.name) {
+        <li class="budget">
+          <div class="budget-head">
+            <span>
+              {{ row.name }}
+              @if (row.is_essential) { <span class="tag ms-1">Essencial</span> }
+            </span>
+            <span class="money">
+              {{ money(row.spent) }}
+              @if (row.limit) { <span class="muted">de {{ money(row.limit) }}</span> }
+            </span>
+            @if (canEdit() && row.category_id) {
+              <button type="button" class="icon-btn" title="Editar limite" aria-label="Editar limite" (click)="openBudget(row)">
+                <i class="bi bi-pencil" aria-hidden="true"></i>
+              </button>
+            }
+          </div>
+          @if (row.limit) {
+            <div class="bar" [class.high]="(row.pct ?? 0) >= 80" [class.over]="(row.pct ?? 0) >= 100">
+              <span [style.width.%]="budgetWidth(row)"></span>
+            </div>
+          }
+        </li>
+      }
+    </ul>
+  </section>
+
+  @if (editing()) {
+    <app-dialog #box heading="Limite da categoria" (closed)="editing.set(false)">
+      <form [formGroup]="budgetForm" (ngSubmit)="saveBudget(box)" novalidate>
+        <div class="mb-3">
+          <label class="form-label" for="bg-category">Categoria</label>
+          <select id="bg-category" class="form-select" formControlName="category_id">
+            <option value="">Escolha</option>
+            @for (c of categories(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="bg-amount">Limite por mês</label>
+          <input id="bg-amount" class="form-control money" formControlName="amount"
+                 inputmode="decimal" placeholder="Vazio remove o limite" autocomplete="off" />
+          <div class="subtle mt-1">Vale a partir deste mês. Meses anteriores não mudam.</div>
+        </div>
+        @if (formError()) { <p class="field-error mb-2" role="alert">{{ formError() }}</p> }
+        <button type="submit" class="btn btn-brand w-100" [disabled]="busy()">Salvar</button>
+      </form>
+    </app-dialog>
+  }
+}

@@ -6,11 +6,6 @@
   justify-content: space-between;
 }
 
-.month-picker { align-items: center; display: flex; gap: 0.4rem; }
-.month-picker .btn { padding: 0.3rem 0.6rem; }
-.month-label { font-weight: 500; min-width: 10.5rem; text-align: center; }
-.month-label::first-letter { text-transform: uppercase; }
-
 .link-btn {
   background: none;
   border: 0;
@@ -63,6 +58,20 @@
   transition: width 300ms ease-out;
 }
 
+.alert-link { color: inherit; }
+
+.recovery-banner {
+  align-items: center;
+  background: var(--accent-soft);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  display: flex;
+  font-weight: 500;
+  gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  text-decoration: none;
+}
+
 .kpis {
   display: grid;
   gap: 0.75rem;
@@ -79,6 +88,13 @@
   display: grid;
   gap: 0.75rem;
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  margin-top: 1rem;
+}
+
+.trends {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   margin-top: 1rem;
 }
 
@@ -102,5 +118,5 @@
   }
   .charts { grid-template-columns: minmax(0, 1fr); }
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .month-picker { justify-content: space-between; width: 100%; }
+  app-month-picker { width: 100%; }
 }
