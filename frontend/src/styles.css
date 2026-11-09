@@ -333,3 +333,8 @@ a:focus-visible, button:focus-visible {
 
 .tag-ok { background: var(--accent-soft); color: var(--accent); }
 .tag-button { border: 0; margin-right: 0.25rem; }
+
+/* Marca: símbolo ao lado do nome. */
+.wordmark, .wordmark-mobile { align-items: center; gap: 0.45em; }
+.wordmark { display: inline-flex; }
+.logo-mark { border-radius: 24%; flex: none; height: 1.15em; width: 1.15em; }

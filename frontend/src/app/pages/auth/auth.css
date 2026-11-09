@@ -74,7 +74,7 @@
 @media (max-width: 767.98px) {
   :host { display: block; }
   .intro { display: none; }
-  .wordmark-mobile { display: block; }
+  .wordmark-mobile { display: flex; }
   .panel { min-height: 100dvh; padding: 1.5rem 1rem; }
 }
 

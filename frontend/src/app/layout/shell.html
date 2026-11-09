@@ -1,6 +1,6 @@
 <aside class="sidebar">
   <div class="side-head">
-    <a class="wordmark display" routerLink="/">Monetta</a>
+    <a class="wordmark display" routerLink="/"><img class="logo-mark" src="favicon.svg" alt="" width="28" height="28" /><span>Monetta</span></a>
     <a class="bell" routerLink="/notificacoes" [attr.aria-label]="unread() + ' notificações não lidas'">
       <i class="bi bi-bell" aria-hidden="true"></i>
       @if (unread()) { <span class="badge-count">{{ unread() > 99 ? '99+' : unread() }}</span> }
@@ -27,7 +27,7 @@
 
 <div class="content">
   <header class="topbar">
-    <a class="wordmark display" routerLink="/">Monetta</a>
+    <a class="wordmark display" routerLink="/"><img class="logo-mark" src="favicon.svg" alt="" width="28" height="28" /><span>Monetta</span></a>
     <div class="top-actions">
       <a class="bell" routerLink="/notificacoes" [attr.aria-label]="unread() + ' notificações não lidas'">
         <i class="bi bi-bell" aria-hidden="true"></i>
