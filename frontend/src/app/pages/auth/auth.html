@@ -1,5 +1,5 @@
 <section class="intro">
-  <span class="wordmark display"><img class="logo-mark" src="favicon.svg" alt="" width="28" height="28" /><span>Monetta</span></span>
+  <span class="wordmark display"><img class="logo-mark" src="logo-v2.svg" alt="" width="28" height="28" /><span>Monetta</span></span>
   <div>
     <p class="statement display">Quanto você tem, quanto já está comprometido e quanto pode gastar.</p>
     <p class="statement-sub">Seu dinheiro, claro em poucos segundos.</p>
@@ -8,7 +8,7 @@
 
 <section class="panel">
   <div class="box fade-up">
-    <span class="wordmark-mobile display"><img class="logo-mark" src="favicon.svg" alt="" width="28" height="28" /><span>Monetta</span></span>
+    <span class="wordmark-mobile display"><img class="logo-mark" src="logo-v2.svg" alt="" width="28" height="28" /><span>Monetta</span></span>
     <h1 class="page-title">{{ isRegister() ? 'Criar sua conta' : 'Entrar' }}</h1>
     <p class="muted mt-1 mb-4">
       {{ isRegister() ? 'Seus dados ficam separados e visíveis só para você.' : 'Bom ver você de volta.' }}
@@ -37,17 +37,9 @@
         </svg>
         Continuar com Google
       </button>
-      <button type="button" class="btn social" [disabled]="!providers()?.apple" (click)="social('apple')">
-        <i class="bi bi-apple" aria-hidden="true"></i>
-        Continuar com Apple
-      </button>
     </div>
-    @if (providers() && !(providers()?.google && providers()?.apple)) {
-      <p class="subtle mt-2 mb-0">
-        {{ !providers()?.google && !providers()?.apple
-          ? 'Google e Apple ainda não foram configurados neste servidor.'
-          : (providers()?.google ? 'Apple' : 'Google') + ' ainda não foi configurado neste servidor.' }}
-      </p>
+    @if (providers() && !providers()?.google) {
+      <p class="subtle mt-2 mb-0">O login com Google ainda não foi configurado neste servidor.</p>
     }
 
     <div class="divider"><span>ou com e-mail</span></div>
