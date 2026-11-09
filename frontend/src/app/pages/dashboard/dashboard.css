@@ -72,12 +72,15 @@
   text-decoration: none;
 }
 
+/* Oito indicadores: 4 + 4 na tela larga, 3 colunas na média, 2 no celular. */
 .kpis {
   display: grid;
   gap: 0.75rem;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-top: 1rem;
 }
+@media (max-width: 1199.98px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 767.98px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .kpi { padding: 1rem 1.1rem; }
 .kpi h2 { color: var(--ink-2); font-size: 0.8125rem; font-weight: 500; margin: 0; }
 .kpi p { font-size: 1.25rem; font-weight: 600; margin: 0.3rem 0 0.1rem; }

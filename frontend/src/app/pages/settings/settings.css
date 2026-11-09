@@ -13,3 +13,9 @@
 .token-box code { color: inherit; overflow-wrap: anywhere; }
 
 .compact-row { padding-bottom: 0.4rem; padding-top: 0.4rem; }
+
+/* Tela larga: duas colunas, em vez de uma faixa estreita com espaço vazio ao lado. */
+@media (min-width: 1200px) {
+  .stack { column-gap: 0.75rem; columns: 2; display: block; max-width: none; }
+  .stack > * { break-inside: avoid; margin-bottom: 0.75rem; }
+}
