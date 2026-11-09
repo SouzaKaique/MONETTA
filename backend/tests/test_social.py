@@ -112,3 +112,82 @@ def test_apple_sem_credenciais_fica_desligado(client):
         "google": True, "apple": False, "registration": True,
     }
     assert client.get("/api/auth/apple/start").status_code == 404
+
+
+def begin_link(client):
+    res = client.post("/api/auth/google/link")
+    assert res.status_code == 200
+    query = parse_qs(urlparse(res.json["url"]).query)
+    return query["state"][0], query["nonce"][0]
+
+
+def test_vincula_google_a_conta_de_senha_mesmo_com_outro_email(client, make_client, fake_provider):
+    register(client)
+    state, nonce = begin_link(client)
+    fake_provider["token"] = lambda v: id_token(nonce, sub="g-9", email="outro@gmail.com")
+    res = finish(client, state)
+    assert res.headers["Location"] == "http://localhost:4200/perfil?vinculado=google"
+    me = client.get("/api/auth/me").json
+    assert me["providers"] == ["google"] and me["has_password"] is True
+
+    # Depois disso, o Google entra direto nessa conta, em qualquer navegador.
+    other = make_client()
+    state, nonce = begin(other)
+    fake_provider["token"] = lambda v: id_token(nonce, sub="g-9", email="outro@gmail.com")
+    finish(other, state)
+    assert other.get("/api/auth/me").json["email"] == "ana@example.com"
+
+
+def test_vinculo_confirma_o_email_quando_e_o_mesmo(client, fake_provider):
+    register(client)
+    state, nonce = begin_link(client)
+    fake_provider["token"] = lambda v: id_token(nonce)
+    finish(client, state)
+    assert db.session.scalar(db.select(User)).email_verified is True
+
+
+def test_nao_vincula_google_que_ja_e_de_outra_conta(client, make_client, fake_provider):
+    owner = make_client()
+    state, nonce = begin(owner)
+    fake_provider["token"] = lambda v: id_token(nonce, sub="g-1", email="dono@gmail.com")
+    finish(owner, state)
+
+    register(client)
+    state, nonce = begin_link(client)
+    fake_provider["token"] = lambda v: id_token(nonce, sub="g-1", email="dono@gmail.com")
+    res = finish(client, state)
+    assert res.headers["Location"] == "http://localhost:4200/perfil?erro=ja_vinculado"
+    assert client.get("/api/auth/me").json["providers"] == []
+
+
+def test_vinculo_exige_login_e_o_mesmo_usuario(client, make_client, fake_provider):
+    assert make_client().post("/api/auth/google/link").status_code == 401
+    register(client)
+    state, nonce = begin_link(client)
+    client.post("/api/auth/logout")
+    fake_provider["token"] = lambda v: id_token(nonce)
+    assert "perfil?erro=sessao_expirada" in finish(client, state).headers["Location"]
+    assert db.session.scalar(db.select(db.func.count()).select_from(UserIdentity)) == 0
+
+
+def test_desvincular_exige_outra_forma_de_entrar(client, fake_provider):
+    state, nonce = begin(client)
+    fake_provider["token"] = lambda v: id_token(nonce)
+    finish(client, state)
+    assert client.delete("/api/auth/google/link").status_code == 409
+
+    assert client.post("/api/profile/password",
+                       json={"new_password": "senha-de-teste-1"}).status_code == 200
+    res = client.delete("/api/auth/google/link")
+    assert res.status_code == 200 and res.json["providers"] == []
+
+
+def test_retorno_no_endereco_do_google_e_repassado_ao_app(app, client):
+    app.config["OAUTH_REDIRECT_BASE"] = "http://localhost"
+    res = client.get("/api/auth/google/start")
+    query = parse_qs(urlparse(res.headers["Location"]).query)
+    assert query["redirect_uri"] == ["http://localhost/api/auth/google/callback"]
+
+    res = client.get("/api/auth/google/callback?code=abc&state=xyz")
+    assert res.status_code == 302
+    assert res.headers["Location"] == "http://localhost:4200/api/auth/google/callback?code=abc&state=xyz"

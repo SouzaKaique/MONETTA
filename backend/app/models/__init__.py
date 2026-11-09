@@ -6,13 +6,13 @@ from .finance import (
     Transaction, Transfer,
 )
 from .planning import Budget, Notification, RecoveryPlan
-from .user import OAuthState, User, UserIdentity, UserSession
+from .user import OAuthState, PasswordReset, User, UserIdentity, UserSession
 from .wishlist import GoalContribution, SavingsGoal, WishlistImage, WishlistItem
 
 __all__ = [
     "Account", "ApiToken", "AppSettings", "Budget", "CardPurchase", "Category", "CreditCard", "Debt",
     "DebtPayment", "GoalContribution", "Installment", "Invoice", "InvoicePayment", "Notification",
-    "OAuthState", "Recurrence", "RecurrenceAmount", "RecurrenceSkip", "RecoveryPlan",
+    "OAuthState", "PasswordReset", "Recurrence", "RecurrenceAmount", "RecurrenceSkip", "RecoveryPlan",
     "SavingsGoal", "Transaction", "Transfer", "User", "UserIdentity", "UserSession",
     "WishlistImage", "WishlistItem",
 ]

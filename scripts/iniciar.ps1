@@ -43,6 +43,8 @@ if ($busy) {
 }
 
 $env:PUBLIC_URL = $address
+# O Google não aceita monetta.localhost como retorno; o servidor recebe em localhost e repassa.
+if (-not $env:OAUTH_REDIRECT_BASE) { $env:OAUTH_REDIRECT_BASE = 'http://localhost' }
 $env:HOST = '127.0.0.1'
 $env:PORT = '80'
 

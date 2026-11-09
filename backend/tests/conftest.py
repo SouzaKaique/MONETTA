@@ -25,6 +25,9 @@ class Client:
     def patch(self, *a, **k):
         return self.raw.patch(*a, headers=HEADERS, **k)
 
+    def delete(self, *a, **k):
+        return self.raw.delete(*a, headers=HEADERS, **k)
+
 
 @pytest.fixture()
 def app():

@@ -90,6 +90,9 @@
         } @else if (isRegister()) {
           <div class="subtle mt-1">Pelo menos 10 caracteres.</div>
         }
+        @if (!isRegister()) {
+          <a class="forgot" routerLink="/esqueci-senha">Esqueci minha senha</a>
+        }
       </div>
       <button type="submit" class="btn btn-brand w-100 py-2"
               [disabled]="busy() || (isRegister() && providers() && !providers()?.registration)">

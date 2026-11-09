@@ -28,6 +28,19 @@
           <li><i class="bi {{ m.icon }}" aria-hidden="true"></i>{{ m.label }}</li>
         }
       </ul>
+
+      @for (p of socialRows(); track p.key) {
+        <div class="link-row">
+          <span><i class="bi {{ p.icon }}" aria-hidden="true"></i>{{ p.label }}</span>
+          @if (p.linked) {
+            <button type="button" class="btn btn-quiet btn-sm" (click)="unlink(p.key)">Desvincular</button>
+          } @else {
+            <button type="button" class="btn btn-quiet btn-sm" (click)="link(p.key)">Vincular</button>
+          }
+        </div>
+      }
+      @if (linkError()) { <p class="field-error">{{ linkError() }}</p> }
+      @if (linkMessage()) { <p class="field-ok">{{ linkMessage() }}</p> }
     </section>
 
     <section class="card-m">
