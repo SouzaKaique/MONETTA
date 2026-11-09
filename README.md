@@ -4,6 +4,17 @@ Gerenciador financeiro pessoal: quanto você tem, quanto já está comprometido 
 
 Arquitetura, modelo de dados e identidade visual: [docs/ARQUITETURA.md](docs/ARQUITETURA.md).
 
+## Usar no dia a dia
+
+Dê dois cliques em **`MONETTA.cmd`**, na pasta do projeto. Ele liga o banco, prepara o app e abre
+**http://monetta.localhost** no navegador. Deixe a janela aberta enquanto usa e feche para encerrar.
+
+- O endereço funciona só neste computador.
+- No Chrome ou no Edge, dá para instalar o MONETTA como aplicativo pelo ícone na barra de endereço.
+- Depois de mudar o código, o atalho recompila sozinho. Para forçar: `MONETTA.cmd -Recompilar`.
+
+Requisitos: os mesmos de **Rodar localmente**, com a primeira vez já feita, e a porta 80 livre.
+
 ## Rodar localmente
 
 Requisitos: Node 24, Python 3.14 e PostgreSQL 17 instalado.
