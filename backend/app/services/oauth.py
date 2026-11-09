@@ -71,8 +71,13 @@ def client_id(provider: Provider) -> str:
     return current_app.config[f"{provider.name.upper()}_CLIENT_ID"]
 
 
+def redirect_base() -> str:
+    c = current_app.config
+    return c["OAUTH_REDIRECT_BASE"] or c["PUBLIC_URL"]
+
+
 def redirect_uri(provider: Provider) -> str:
-    return f"{current_app.config['PUBLIC_URL']}/api/auth/{provider.name}/callback"
+    return f"{redirect_base()}/api/auth/{provider.name}/callback"
 
 
 def authorization_url(provider: Provider, state: str, nonce: str, verifier: str) -> str:
@@ -182,3 +187,20 @@ def resolve_user(provider: Provider, claims: dict, name_hint: str | None = None)
 
     user.identities.append(UserIdentity(provider=provider.name, subject=claims["sub"]))
     return user
+
+
+def link_identity(provider: Provider, claims: dict, user: User) -> None:
+    """Vincula o provedor à conta de quem já está logado, mesmo com outro e-mail."""
+    identity = db.session.scalar(
+        db.select(UserIdentity).filter_by(provider=provider.name, subject=claims["sub"])
+    )
+    if identity is not None:
+        if identity.user_id != user.id:
+            raise OAuthError("ja_vinculado")
+        return
+    if any(i.provider == provider.name for i in user.identities):
+        raise OAuthError("ja_vinculado")
+    user.identities.append(UserIdentity(provider=provider.name, subject=claims["sub"]))
+    email = (claims.get("email") or "").strip().lower()
+    if email == user.email and str(claims.get("email_verified", "")).lower() == "true":
+        user.email_verified = True

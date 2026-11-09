@@ -13,6 +13,16 @@ export const routes: Routes = [
     data: { mode: 'register' },
   },
   {
+    path: 'esqueci-senha',
+    loadComponent: () => import('./pages/auth/password').then((m) => m.PasswordPage),
+    data: { mode: 'forgot' },
+  },
+  {
+    path: 'redefinir-senha',
+    loadComponent: () => import('./pages/auth/password').then((m) => m.PasswordPage),
+    data: { mode: 'reset' },
+  },
+  {
     path: '',
     canActivate: [authGuard],
     loadComponent: () => import('./layout/shell').then((m) => m.Shell),

@@ -77,3 +77,5 @@
   .wordmark-mobile { display: block; }
   .panel { min-height: 100dvh; padding: 1.5rem 1rem; }
 }
+
+.forgot { display: inline-block; font-size: 0.8125rem; margin-top: 0.5rem; }

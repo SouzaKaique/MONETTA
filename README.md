@@ -77,10 +77,38 @@ cd frontend; npx ng test --watch=false
 
 ## Configurar login com Google
 
-1. No [Google Cloud Console](https://console.cloud.google.com/apis/credentials), crie um **ID do cliente OAuth** do tipo **Aplicativo da Web**.
-2. Em **URIs de redirecionamento autorizados**, adicione `http://localhost:4200/api/auth/google/callback`.
-3. Copie o ID e o segredo para `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` no `.env`.
-4. Reinicie o backend. O botão é ativado sozinho.
+É gratuito e não pede cartão. Basta uma conta Google.
+
+1. Abra o [Google Cloud Console](https://console.cloud.google.com/) e crie um projeto (ex.: `MONETTA`).
+2. Em **APIs e serviços > Tela de consentimento OAuth** (ou **Google Auth Platform**), escolha
+   **Externo**, preencha o nome do app e o seu e-mail. Em **Público-alvo**, adicione como
+   **usuários de teste** os e-mails que vão entrar no MONETTA (até 100; não precisa publicar o app).
+3. Em **Credenciais > Criar credenciais > ID do cliente OAuth**, tipo **Aplicativo da Web**.
+   Em **URIs de redirecionamento autorizados**, adicione exatamente:
+   - `http://localhost/api/auth/google/callback` (uso com o `MONETTA.cmd`)
+   - `http://localhost:4200/api/auth/google/callback` (só se você desenvolve com `ng serve`)
+4. Copie o **ID do cliente** e a **chave secreta** para `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` no `.env`.
+5. Feche a janela do MONETTA e abra de novo. O botão do Google é ativado sozinho.
+
+O Google não aceita `monetta.localhost` como retorno, por isso o retorno chega em `localhost`
+e o servidor repassa para `monetta.localhost` (variável `OAUTH_REDIRECT_BASE`, que o `MONETTA.cmd` já define).
+
+Quem já tem conta com senha pode ligar o Google em **Perfil > Formas de entrar > Vincular**,
+mesmo que o e-mail do Google seja outro. Depois disso, entra pelos dois jeitos.
+
+## Recuperar a senha
+
+Na tela de login, **Esqueci minha senha** gera um link que vale por 30 minutos e só pode ser usado uma vez.
+Ao criar a nova senha, todas as sessões abertas são encerradas.
+
+- **Sem configurar nada**, o link aparece na janela do `MONETTA.cmd` (a janela preta). Copie e abra no navegador.
+- **Para receber por e-mail** com uma conta Gmail: ative a verificação em duas etapas, crie uma
+  [senha de app](https://myaccount.google.com/apppasswords) e preencha no `.env`:
+  `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, `SMTP_USER=seu@gmail.com`, `SMTP_PASSWORD=` (a senha de app)
+  e `SMTP_FROM=MONETTA <seu@gmail.com>`.
+
+Se esquecer a senha e não tiver acesso ao e-mail, no próprio computador:
+`cd backend` e `.venv\Scripts\python -m flask --app wsgi.py reset-password seu@email.com`.
 
 ## Configurar login com Apple
 

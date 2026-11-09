@@ -68,3 +68,18 @@ class OAuthState(db.Model):
     nonce: Mapped[str] = mapped_column(sa.String(64))
     code_verifier: Mapped[str] = mapped_column(sa.String(128))
     expires_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True))
+    # Preenchido quando um usuário já logado está vinculando o provedor à própria conta.
+    link_user_id: Mapped[UUID | None] = mapped_column(
+        sa.ForeignKey("users.id", ondelete="CASCADE")
+    )
+
+
+class PasswordReset(db.Model):
+    """Link de redefinição de senha: de uso único, curta duração, só o hash fica no banco."""
+
+    __tablename__ = "password_resets"
+
+    token_hash: Mapped[str] = mapped_column(sa.String(64), primary_key=True)
+    user_id: Mapped[UUID] = mapped_column(sa.ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True))

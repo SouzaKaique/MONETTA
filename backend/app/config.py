@@ -28,6 +28,17 @@ class Config:
     APPLE_TEAM_ID = os.environ.get("APPLE_TEAM_ID", "")
     APPLE_KEY_ID = os.environ.get("APPLE_KEY_ID", "")
     APPLE_PRIVATE_KEY_PATH = os.environ.get("APPLE_PRIVATE_KEY_PATH", "")
+    # Endereço que o Google aceita como retorno. O Google recusa http://monetta.localhost,
+    # mas aceita http://localhost; o retorno chega lá e é repassado ao PUBLIC_URL.
+    OAUTH_REDIRECT_BASE = os.environ.get("OAUTH_REDIRECT_BASE", "").rstrip("/")
+
+    # E-mail para recuperação de senha. Sem SMTP_HOST, o link aparece na janela do servidor.
+    SMTP_HOST = os.environ.get("SMTP_HOST", "")
+    SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+    SMTP_USER = os.environ.get("SMTP_USER", "")
+    SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+    SMTP_FROM = os.environ.get("SMTP_FROM", "")
+    MAIL_BACKEND = "smtp" if os.environ.get("SMTP_HOST") else "console"
 
 
 MIN_SECRET_LENGTH = 32
@@ -63,3 +74,5 @@ class TestConfig(Config):
     APPLE_TEAM_ID = ""
     APPLE_KEY_ID = ""
     APPLE_PRIVATE_KEY_PATH = ""
+    OAUTH_REDIRECT_BASE = ""
+    MAIL_BACKEND = "memory"

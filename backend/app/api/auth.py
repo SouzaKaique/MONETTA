@@ -1,17 +1,18 @@
 """Cadastro, login e sessão com e-mail e senha."""
+import secrets
 from datetime import timedelta
 
-from flask import Blueprint, g, jsonify, make_response, request
+from flask import Blueprint, current_app, g, jsonify, make_response, request
 from marshmallow import Schema, fields, validate
 
 from ..extensions import db
-from ..models import User
+from ..models import PasswordReset, User
 from ..models.common import utcnow
-from ..services import oauth, ratelimit
+from ..services import mail, oauth, ratelimit
 from ..services.accounts import create_user, registration_open
 from ..services.security import (
     end_session_cookie, hash_password, revoke_all_sessions,
-    session_from_request, start_session, verify_password,
+    session_from_request, sha256, start_session, verify_password,
 )
 from .common import error, load_body, login_required, user_payload
 
@@ -21,6 +22,9 @@ MAX_FAILED_LOGINS = 5
 LOGIN_PER_MINUTE = 20
 REGISTER_PER_MINUTE = 10
 LOCK_MINUTES = 15
+FORGOT_PER_MINUTE = 5
+RESET_PER_MINUTE = 10
+RESET_MINUTES = 30
 PasswordField = fields.String(required=True, validate=validate.Length(min=10, max=128))
 
 
@@ -33,6 +37,15 @@ class RegisterSchema(Schema):
 class LoginSchema(Schema):
     email = fields.Email(required=True)
     password = fields.String(required=True, validate=validate.Length(max=128))
+
+
+class ForgotSchema(Schema):
+    email = fields.Email(required=True, validate=validate.Length(max=254))
+
+
+class ResetSchema(Schema):
+    token = fields.String(required=True, validate=validate.Length(min=20, max=200))
+    password = PasswordField
 
 
 @bp.get("/providers")
@@ -114,3 +127,56 @@ def logout_all():
 @login_required
 def me():
     return jsonify(user_payload(g.user))
+
+
+@bp.post("/password/forgot")
+def forgot_password():
+    if not ratelimit.allow(f"forgot:{request.remote_addr}", FORGOT_PER_MINUTE):
+        return error("Muitas tentativas. Aguarde um minuto.", 429)
+    data = load_body(ForgotSchema())
+    email = data["email"].strip().lower()
+    # Mesma resposta exista ou não a conta: não revela quem está cadastrado.
+    answer = jsonify({"message": "Se houver uma conta com este e-mail, enviamos um link "
+                                 "para criar uma nova senha. Ele vale por 30 minutos."})
+    if not ratelimit.allow(f"forgot-email:{email}", 3, window=900):
+        return answer
+    user = db.session.scalar(db.select(User).filter_by(email=email))
+    if user is None:
+        return answer
+
+    db.session.execute(db.delete(PasswordReset).where(
+        (PasswordReset.user_id == user.id) | (PasswordReset.expires_at < utcnow())
+    ))
+    token = secrets.token_urlsafe(32)
+    db.session.add(PasswordReset(token_hash=sha256(token), user_id=user.id,
+                                 expires_at=utcnow() + timedelta(minutes=RESET_MINUTES)))
+    db.session.commit()
+    link = f"{current_app.config['PUBLIC_URL']}/redefinir-senha#{token}"
+    mail.send(user.email, "MONETTA: criar uma nova senha", (
+        f"Olá, {user.account_name}.\n\n"
+        f"Para criar uma nova senha no MONETTA, abra o link abaixo em até {RESET_MINUTES} minutos:\n\n"
+        f"{link}\n\n"
+        "Se você não pediu, ignore este e-mail: sua senha continua a mesma."
+    ))
+    return answer
+
+
+@bp.post("/password/reset")
+def reset_password():
+    if not ratelimit.allow(f"reset:{request.remote_addr}", RESET_PER_MINUTE):
+        return error("Muitas tentativas. Aguarde um minuto.", 429)
+    data = load_body(ResetSchema())
+    pending = db.session.get(PasswordReset, sha256(data["token"]), with_for_update=True)
+    if pending is None or pending.expires_at <= utcnow():
+        return error("Este link expirou ou já foi usado. Peça um novo.", 400)
+
+    user = db.session.get(User, pending.user_id)
+    db.session.execute(db.delete(PasswordReset).where(PasswordReset.user_id == user.id))
+    user.password_hash = hash_password(data["password"])
+    # Quem abriu o link recebido no e-mail provou que o e-mail é seu.
+    user.email_verified = True
+    user.failed_logins = 0
+    user.locked_until = None
+    revoke_all_sessions(user)
+    db.session.commit()
+    return jsonify({"message": "Senha criada. Entre com a nova senha."})

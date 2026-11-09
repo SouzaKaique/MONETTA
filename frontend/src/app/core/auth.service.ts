@@ -48,6 +48,29 @@ export class AuthService {
     location.assign(`/api/auth/${provider}/start`);
   }
 
+  /** Para quem já está logado: o servidor devolve o endereço do provedor. */
+  linkSocial(provider: 'google' | 'apple'): Observable<string> {
+    return this.http
+      .post<{ url: string }>(`/api/auth/${provider}/link`, {})
+      .pipe(map((r) => r.url));
+  }
+
+  unlinkSocial(provider: 'google' | 'apple'): Observable<User> {
+    return this.http.delete<User>(`/api/auth/${provider}/link`).pipe(tap((u) => this.accept(u)));
+  }
+
+  forgotPassword(email: string): Observable<string> {
+    return this.http
+      .post<{ message: string }>('/api/auth/password/forgot', { email })
+      .pipe(map((r) => r.message));
+  }
+
+  resetPassword(token: string, password: string): Observable<string> {
+    return this.http
+      .post<{ message: string }>('/api/auth/password/reset', { token, password })
+      .pipe(map((r) => r.message));
+  }
+
   logout(everywhere = false): Observable<void> {
     const path = everywhere ? 'logout-all' : 'logout';
     return this.http.post(`/api/auth/${path}`, {}, { responseType: 'text' }).pipe(

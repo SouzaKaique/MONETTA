@@ -1,10 +1,19 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { apiMessage } from '../../core/http';
-import { ThemePreference } from '../../core/models';
+import { Providers, ThemePreference } from '../../core/models';
 import { Avatar } from '../../layout/avatar';
+
+const LINK_ERRORS: Record<string, string> = {
+  cancelado: 'Vínculo cancelado.',
+  sessao_expirada: 'A tentativa expirou. Tente novamente.',
+  provedor: 'Não foi possível falar com o provedor. Tente novamente.',
+  token_invalido: 'Não foi possível confirmar sua identidade. Tente novamente.',
+  ja_vinculado: 'Esta conta do provedor já está ligada a outro usuário do MONETTA, ou você já vinculou outra.',
+};
+const PROVIDER_LABELS = { google: 'Google', apple: 'Apple' } as const;
 
 @Component({
   selector: 'app-profile',
@@ -12,9 +21,61 @@ import { Avatar } from '../../layout/avatar';
   templateUrl: './profile.html',
   styleUrl: './profile.css',
 })
-export class ProfilePage {
+export class ProfilePage implements OnInit {
   protected readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly providers = signal<Providers | null>(null);
+  protected readonly linkError = signal<string | null>(null);
+  protected readonly linkMessage = signal<string | null>(null);
+
+  /** Provedores configurados neste servidor, com o estado de vínculo da conta. */
+  protected readonly socialRows = computed(() => {
+    const user = this.auth.user();
+    const enabled = this.providers();
+    if (!user || !enabled) return [];
+    return (['google', 'apple'] as const)
+      .filter((key) => enabled[key])
+      .map((key) => ({
+        key,
+        label: PROVIDER_LABELS[key],
+        icon: key === 'google' ? 'bi-google' : 'bi-apple',
+        linked: user.providers.includes(key),
+      }));
+  });
+
+  ngOnInit(): void {
+    this.auth.providers().subscribe({ next: (p) => this.providers.set(p), error: () => {} });
+    const query = this.route.snapshot.queryParamMap;
+    const linked = query.get('vinculado') as keyof typeof PROVIDER_LABELS | null;
+    const failed = query.get('erro');
+    if (linked && PROVIDER_LABELS[linked]) {
+      this.linkMessage.set(`${PROVIDER_LABELS[linked]} vinculado. Agora você também pode entrar por ele.`);
+    } else if (failed) {
+      this.linkError.set(LINK_ERRORS[failed] ?? 'Não foi possível vincular.');
+    }
+    if (linked || failed) {
+      void this.auth.ensureLoaded();
+      void this.router.navigate([], { queryParams: {}, replaceUrl: true });
+    }
+  }
+
+  protected link(provider: 'google' | 'apple'): void {
+    this.linkError.set(null);
+    this.auth.linkSocial(provider).subscribe({
+      next: (url) => location.assign(url),
+      error: (e) => this.linkError.set(apiMessage(e, 'Não foi possível iniciar o vínculo.')),
+    });
+  }
+
+  protected unlink(provider: 'google' | 'apple'): void {
+    this.linkError.set(null);
+    this.linkMessage.set(null);
+    this.auth.unlinkSocial(provider).subscribe({
+      next: () => this.linkMessage.set(`${PROVIDER_LABELS[provider]} desvinculado.`),
+      error: (e) => this.linkError.set(apiMessage(e, 'Não foi possível desvincular.')),
+    });
+  }
 
   protected readonly themes: { value: ThemePreference; label: string; icon: string }[] = [
     { value: 'system', label: 'Sistema', icon: 'bi-circle-half' },

@@ -49,3 +49,13 @@
 .field-ok { color: var(--accent); }
 
 .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.link-row {
+  align-items: center;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+}
+.link-row span { align-items: center; display: inline-flex; gap: 0.5rem; }
