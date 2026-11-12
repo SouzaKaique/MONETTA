@@ -116,10 +116,13 @@ def generate(user_id: UUID, until: date) -> int:
 
 def _card_purchase(rec: Recurrence, day: date) -> int:
     """Compra à vista na fatura que recebe o dia da ocorrência."""
+    amount = amount_for(rec, day)
+    others = min(rec.others_amount or Decimal("0.00"), amount)  # o valor pode ter baixado
     purchase_id = db.session.scalar(
         insert(CardPurchase).values(
             id=db.func.gen_random_uuid(), user_id=rec.user_id, card_id=rec.card_id,
-            category_id=rec.category_id, description=rec.name, total_amount=amount_for(rec, day),
+            category_id=rec.category_id, description=rec.name, total_amount=amount,
+            others_amount=others,
             purchase_date=day, installment_count=1, recurrence_id=rec.id, occurrence_date=day,
             created_at=db.func.now(), updated_at=db.func.now(),
         ).on_conflict_do_nothing(index_elements=["recurrence_id", "occurrence_date"])
@@ -130,7 +133,7 @@ def _card_purchase(rec: Recurrence, day: date) -> int:
     invoice = cards.get_invoice(rec.card, cards.invoice_month_for(rec.card, day))
     db.session.add(Installment(
         user_id=rec.user_id, purchase_id=purchase_id, number=1,
-        amount=amount_for(rec, day), invoice_id=invoice.id,
+        amount=amount, others_amount=others, invoice_id=invoice.id,
     ))
     db.session.flush()
     return 1

@@ -87,6 +87,12 @@ import { Dialog } from './dialog';
         </div>
         @if (onCard()) {
           <p class="subtle mb-3">Entra todo mês na fatura do cartão, no dia da cobrança. A conta só é afetada quando você paga a fatura.</p>
+          <div class="mb-3">
+            <label class="form-label" for="rc-others">Parte de outras pessoas (opcional)</label>
+            <input id="rc-others" class="form-control money" formControlName="others_amount"
+                   inputmode="decimal" placeholder="0,00" autocomplete="off" />
+            <div class="subtle mt-1">Para assinatura dividida: a fatura mostra o valor inteiro, mas só a sua parte conta como despesa.</div>
+          </div>
         }
 
         @if (kind() === 'expense' && !onCard()) {
@@ -154,6 +160,7 @@ export class RecurrenceForm implements OnInit {
     category_id: new FormControl('', { nonNullable: true }),
     /** "account:<id>" ou "card:<id>": despesa fixa pode sair da conta ou entrar na fatura. */
     source: new FormControl('', { nonNullable: true }),
+    others_amount: new FormControl('', { nonNullable: true }),
     payment_method: new FormControl('', { nonNullable: true }),
     is_salary: new FormControl(false, { nonNullable: true }),
   });
@@ -174,6 +181,7 @@ export class RecurrenceForm implements OnInit {
         end_date: rec.end_date ?? '',
         category_id: rec.category_id ?? '',
         source,
+        others_amount: Number(rec.others_amount) > 0 ? moneyToInput(rec.others_amount) : '',
         payment_method: rec.payment_method ?? '',
       });
     }
@@ -204,13 +212,18 @@ export class RecurrenceForm implements OnInit {
 
     const [sourceKind, sourceId] = value.source.split(':');
     const onCard = sourceKind === 'card';
+    const others = onCard && value.others_amount.trim() ? parseMoney(value.others_amount) : '0';
+    if (others === null || Number(others) < 0 || Number(others) > Number(amount)) {
+      this.error.set('A parte de outras pessoas deve ficar entre 0 e o valor.');
+      return;
+    }
     const shared = {
       name: value.name.trim(),
       amount,
       end_date: value.end_date || null,
       category_id: value.category_id || null,
       account_id: sourceKind === 'account' ? sourceId : null,
-      ...(this.kind() === 'expense' ? { card_id: onCard ? sourceId : null } : {}),
+      ...(this.kind() === 'expense' ? { card_id: onCard ? sourceId : null, others_amount: others } : {}),
       payment_method: onCard ? null : value.payment_method || null,
       ...(this.isMonthly() ? { day_of_month: value.day_of_month } : {}),
     };

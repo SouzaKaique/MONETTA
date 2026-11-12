@@ -93,8 +93,19 @@
                   @if (item.count > 1) { · parcela {{ item.number }} de {{ item.count }} }
                   @if (item.category_name) { · {{ item.category_name }} }
                 </span>
+                @if (isZero(item.own_amount)) {
+                  <span class="share-note"><span class="tag">Anulada</span> não conta como despesa sua</span>
+                } @else if (!isZero(item.others_amount)) {
+                  <span class="share-note">Sua parte: <span class="money">{{ money(item.own_amount) }}</span></span>
+                }
               </div>
-              <span class="row-amount money">{{ money(item.amount) }}</span>
+              <span class="row-amount money" [class.annulled]="isZero(item.own_amount)">{{ money(item.amount) }}</span>
+              <div class="row-actions">
+                <button type="button" class="icon-btn" title="Dividir ou anular" aria-label="Dividir ou anular"
+                        (click)="openShare(item)">
+                  <i class="bi bi-people" aria-hidden="true"></i>
+                </button>
+              </div>
             </li>
           }
         </ul>
@@ -171,6 +182,32 @@
 
   @if (editing()) { <app-card-form [card]="c" (closed)="editing.set(false)" /> }
   @if (buying()) { <app-purchase-form [cardId]="c.id" (closed)="buying.set(false)" /> }
+
+  @if (sharing(); as item) {
+    <app-dialog #shareBox heading="Dividir ou anular" (closed)="sharing.set(null)">
+      <p class="subtle">
+        {{ item.description }}: compra de <span class="money">{{ money(item.purchase_total) }}</span>
+        @if (item.count > 1) { em {{ item.count }} parcelas }.
+        A fatura continua com o valor inteiro; só a sua parte conta como despesa.
+      </p>
+      @if (item.recurrence_id) {
+        <p class="subtle">É um gasto fixo: para dividir todo mês, edite em Despesas › Fixas.</p>
+      }
+      <form [formGroup]="shareForm" (ngSubmit)="saveShare(shareBox)" novalidate>
+        <div class="mb-3">
+          <label class="form-label" for="share-own">Sua parte {{ item.count > 1 ? 'da compra toda' : '' }}</label>
+          <input id="share-own" class="form-control money" formControlName="own" inputmode="decimal"
+                 placeholder="0,00" autocomplete="off" />
+        </div>
+        @if (shareError()) { <p class="field-error mb-2" role="alert">{{ shareError() }}</p> }
+        <div class="share-actions">
+          <button type="button" class="btn btn-quiet" [disabled]="busy()" (click)="saveShare(shareBox, '0')">Anular (nada é meu)</button>
+          <button type="button" class="btn btn-quiet" [disabled]="busy()" (click)="saveShare(shareBox, item.purchase_total)">Tudo é meu</button>
+          <button type="submit" class="btn btn-brand" [disabled]="busy()">Salvar</button>
+        </div>
+      </form>
+    </app-dialog>
+  }
 
   @if (paying()) {
     <app-dialog #payBox heading="Pagar fatura" (closed)="paying.set(false)">

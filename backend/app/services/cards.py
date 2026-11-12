@@ -61,6 +61,7 @@ def get_invoice(card: CreditCard, reference: date) -> Invoice:
 
 def create_installments(purchase: CardPurchase, first_month: date, already_paid: int) -> None:
     amounts = split_installments(purchase.total_amount, purchase.installment_count)
+    others = _split_others(purchase.others_amount or ZERO, purchase.installment_count)
     year, month = first_month.year, first_month.month
     for index, amount in enumerate(amounts):
         invoice = None
@@ -69,8 +70,21 @@ def create_installments(purchase: CardPurchase, first_month: date, already_paid:
             invoice = get_invoice(purchase.card, date(y, m, 1))
         purchase.installments.append(Installment(
             user_id=purchase.user_id, number=index + 1, amount=amount,
-            invoice_id=invoice.id if invoice else None,
+            others_amount=others[index], invoice_id=invoice.id if invoice else None,
         ))
+
+
+def _split_others(total: Decimal, count: int) -> list[Decimal]:
+    # Mesma divisão das parcelas: a parte de cada uma nunca passa do valor da parcela.
+    return split_installments(total, count) if total > 0 else [ZERO] * count
+
+
+def set_others(purchase: CardPurchase, others: Decimal) -> None:
+    """Quanto da compra é de outras pessoas; 0 desfaz, o total anula a compra inteira."""
+    purchase.others_amount = others
+    parts = _split_others(others, purchase.installment_count)
+    for item in purchase.installments:
+        item.others_amount = parts[item.number - 1]
 
 
 def remove_empty_invoices(card_id: UUID) -> None:
@@ -178,8 +192,9 @@ def spending_by_month(card: CreditCard, today: date) -> list[dict]:
 # Consultas usadas pelo dashboard. Competência da parcela = vencimento da sua fatura.
 
 def installments_total(user_id: UUID, start: date, end: date) -> Decimal:
+    """Despesa do mês no cartão: só a sua parte de cada parcela."""
     return _sum(
-        sa.select(sa.func.sum(Installment.amount)).join(Invoice)
+        sa.select(sa.func.sum(Installment.own_amount())).join(Invoice)
         .where(Installment.user_id == user_id, Invoice.due_date.between(start, end))
     )
 
@@ -203,7 +218,7 @@ def invoices_due_between(user_id: UUID, start: date, end: date) -> Decimal:
 
 def installments_by_category(user_id: UUID, start: date, end: date) -> dict[str | None, Decimal]:
     rows = db.session.execute(
-        sa.select(Category.name, sa.func.sum(Installment.amount))
+        sa.select(Category.name, sa.func.sum(Installment.own_amount()))
         .select_from(Installment)
         .join(Invoice, Installment.invoice_id == Invoice.id)
         .join(CardPurchase, Installment.purchase_id == CardPurchase.id)

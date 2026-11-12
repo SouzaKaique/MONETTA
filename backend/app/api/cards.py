@@ -1,5 +1,6 @@
 """Cartões, faturas, compras e pagamentos."""
 from datetime import date
+from decimal import Decimal
 
 import sqlalchemy as sa
 from flask import Blueprint, g, jsonify, request
@@ -23,6 +24,11 @@ COLORS = ["forest", "graphite", "wine", "navy", "ochre", "plum"]
 DAY = validate.Range(min=1, max=31)
 LIMIT = validate.Range(min=0, max=999_999_999.99)
 NOTES = {"allow_none": True, "validate": validate.Length(max=2000)}
+
+
+def OthersField(**kwargs):
+    """Parte de outras pessoas: de zero até o total da compra."""
+    return fields.Decimal(places=2, validate=validate.Range(min=0, max=999_999_999.99), **kwargs)
 
 
 class CardSchema(Schema):
@@ -60,17 +66,21 @@ class PurchaseSchema(Schema):
     first_month = fields.String(load_default=None, allow_none=True)
     category_id = fields.UUID(load_default=None, allow_none=True)
     notes = fields.String(load_default=None, **NOTES)
+    others_amount = OthersField(load_default=Decimal("0.00"))
 
     @validates_schema
     def check_paid(self, data, **kwargs):
         if data["already_paid"] >= data["installment_count"]:
             raise ValidationError({"already_paid": ["Deve restar ao menos uma parcela."]})
+        if data["others_amount"] > data["total_amount"]:
+            raise ValidationError({"others_amount": ["Não pode passar do valor da compra."]})
 
 
 class PurchaseUpdateSchema(Schema):
     description = fields.String(validate=validate.Length(min=1, max=160))
     category_id = fields.UUID(allow_none=True)
     notes = fields.String(**NOTES)
+    others_amount = OthersField()
 
 
 class PaymentSchema(Schema):
@@ -111,6 +121,9 @@ def installment_payload(item: Installment) -> dict:
     return {
         "id": str(item.id), "purchase_id": str(purchase.id), "description": purchase.description,
         "number": item.number, "count": purchase.installment_count, "amount": item.amount,
+        "others_amount": item.others_amount, "own_amount": item.amount - item.others_amount,
+        "purchase_total": purchase.total_amount, "purchase_others": purchase.others_amount,
+        "recurrence_id": str(purchase.recurrence_id) if purchase.recurrence_id else None,
         "purchase_date": purchase.purchase_date.isoformat(),
         "category_name": purchase.category.name if purchase.category else None,
         "card_name": purchase.card.name,
@@ -132,6 +145,8 @@ def purchase_payload(purchase: CardPurchase) -> dict:
         "description": purchase.description, "total_amount": purchase.total_amount,
         "purchase_date": purchase.purchase_date.isoformat(),
         "installment_count": purchase.installment_count,
+        "others_amount": purchase.others_amount,
+        "own_amount": purchase.total_amount - purchase.others_amount,
         "category_id": str(purchase.category_id) if purchase.category_id else None,
         "category_name": purchase.category.name if purchase.category else None,
         "notes": purchase.notes,
@@ -326,6 +341,11 @@ def update_purchase(purchase_id):
     data = load_body(PurchaseUpdateSchema())
     if "category_id" in data:
         check_category(data["category_id"], "expense")
+    others = data.pop("others_amount", None)
+    if others is not None:
+        if others > purchase.total_amount:
+            raise ValidationError({"others_amount": ["Não pode passar do valor da compra."]})
+        service.set_others(purchase, others)
     for field, value in data.items():
         setattr(purchase, field, value)
     db.session.commit()

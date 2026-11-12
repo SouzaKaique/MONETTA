@@ -157,6 +157,7 @@ export interface Recurrence {
   account_id: string | null;
   card_id: string | null;
   card_name: string | null;
+  others_amount: string;
   payment_method: string | null;
   notes: string | null;
   amount_history: { amount: string; effective_from: string }[];
@@ -207,6 +208,12 @@ export interface Installment {
   category_name: string | null;
   card_name: string;
   due_date: string | null;
+  /** Parte de outras pessoas: fica na fatura, mas não é despesa sua. */
+  others_amount: string;
+  own_amount: string;
+  purchase_total: string;
+  purchase_others: string;
+  recurrence_id: string | null;
 }
 
 export interface InvoiceDetail extends Invoice {
@@ -227,6 +234,8 @@ export interface Purchase {
   purchase_date: string;
   installment_count: number;
   category_name: string | null;
+  others_amount: string;
+  own_amount: string;
   first_due_date: string | null;
   last_due_date: string | null;
 }

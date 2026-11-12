@@ -5,6 +5,7 @@ Uma compra é despesa uma única vez, pelas parcelas. O pagamento da fatura (Inv
 liquida uma obrigação: tira dinheiro da conta, mas nunca conta como despesa.
 """
 from datetime import date
+from decimal import Decimal
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -70,6 +71,7 @@ class CardPurchase(IdMixin, TimestampMixin, db.Model):
         sa.CheckConstraint("installment_count BETWEEN 1 AND 48", name="installments_valid"),
         sa.UniqueConstraint("user_id", "idempotency_key"),
         sa.UniqueConstraint("recurrence_id", "occurrence_date"),  # impede duplicar o gasto fixo
+        sa.CheckConstraint("others_amount BETWEEN 0 AND total_amount", name="others_valid"),
     )
 
     user_id: Mapped[UUID] = mapped_column(sa.ForeignKey("users.id", ondelete="CASCADE"), index=True)
@@ -84,6 +86,9 @@ class CardPurchase(IdMixin, TimestampMixin, db.Model):
     # Gerada por um gasto fixo no cartão; continua na fatura se a regra for apagada.
     recurrence_id: Mapped[UUID | None] = mapped_column(sa.ForeignKey("recurrences.id", ondelete="SET NULL"))
     occurrence_date: Mapped[date | None]
+    # Parte de outras pessoas (conta dividida, compra para alguém). Fica na fatura,
+    # que é paga inteira, mas não conta como despesa sua.
+    others_amount: Mapped[Money] = mapped_column(default=Decimal("0.00"), server_default="0")
 
     card: Mapped[CreditCard] = relationship()
     category: Mapped[Category | None] = relationship()
@@ -102,6 +107,7 @@ class Installment(IdMixin, db.Model):
     __table_args__ = (
         sa.UniqueConstraint("purchase_id", "number"),
         sa.CheckConstraint("amount > 0", name="amount_positive"),
+        sa.CheckConstraint("others_amount BETWEEN 0 AND amount", name="others_valid"),
     )
 
     user_id: Mapped[UUID] = mapped_column(sa.ForeignKey("users.id", ondelete="CASCADE"), index=True)
@@ -109,6 +115,12 @@ class Installment(IdMixin, db.Model):
     invoice_id: Mapped[UUID | None] = mapped_column(sa.ForeignKey("invoices.id", ondelete="RESTRICT"), index=True)
     number: Mapped[int]
     amount: Mapped[Money]
+    others_amount: Mapped[Money] = mapped_column(default=Decimal("0.00"), server_default="0")
+
+    @classmethod
+    def own_amount(cls):
+        """Parte que é despesa sua; a fatura e o limite usam o valor inteiro."""
+        return cls.amount - cls.others_amount
 
     purchase: Mapped[CardPurchase] = relationship(back_populates="installments")
     invoice: Mapped[Invoice | None] = relationship(back_populates="installments")

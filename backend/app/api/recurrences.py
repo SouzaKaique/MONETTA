@@ -1,5 +1,6 @@
 """Regras recorrentes: salário, contas fixas e assinaturas."""
 from datetime import date, timedelta
+from decimal import Decimal
 
 import sqlalchemy as sa
 from flask import Blueprint, g, jsonify, request
@@ -21,6 +22,11 @@ DAY = validate.Range(min=1, max=31)
 NOTES = {"allow_none": True, "validate": validate.Length(max=2000)}
 
 
+def OTHERS(**kwargs):
+    """Parte de outras pessoas em cada cobrança no cartão."""
+    return fields.Decimal(places=2, validate=validate.Range(min=0, max=999_999_999.99), **kwargs)
+
+
 class RecurrenceSchema(Schema):
     kind = fields.String(required=True, validate=validate.OneOf(["income", "expense"]))
     name = fields.String(required=True, validate=NAME)
@@ -35,6 +41,7 @@ class RecurrenceSchema(Schema):
     category_id = fields.UUID(load_default=None, allow_none=True)
     account_id = fields.UUID(load_default=None, allow_none=True)
     card_id = fields.UUID(load_default=None, allow_none=True)
+    others_amount = OTHERS(load_default=Decimal("0.00"))
     payment_method = PaymentField(load_default=None)
     notes = fields.String(load_default=None, **NOTES)
 
@@ -42,6 +49,8 @@ class RecurrenceSchema(Schema):
     def check_rules(self, data, **kwargs):
         if data.get("card_id") and data["kind"] != "expense":
             raise ValidationError({"card_id": ["Apenas despesas podem ir para o cartão."]})
+        if data["others_amount"] > data["amount"]:
+            raise ValidationError({"others_amount": ["Não pode passar do valor."]})
         if data["frequency"] == "monthly" and data.get("day_of_month") is None:
             raise ValidationError({"day_of_month": ["Informe o dia."]})
         if data.get("end_date") and data["end_date"] < data["start_date"]:
@@ -61,6 +70,7 @@ class RecurrenceUpdateSchema(Schema):
     category_id = fields.UUID(allow_none=True)
     account_id = fields.UUID(allow_none=True)
     card_id = fields.UUID(allow_none=True)
+    others_amount = OTHERS()
     payment_method = PaymentField()
     notes = fields.String(**NOTES)
 
@@ -140,6 +150,8 @@ def update_recurrence(rec_id):
 
     amount = data.pop("amount", None)
     active = data.pop("active", None)
+    if data.get("others_amount", 0) > (amount or service.amount_for(rec, effective)):
+        raise ValidationError({"others_amount": ["Não pode passar do valor."]})
     for field, value in data.items():
         setattr(rec, field, value)
     if amount is not None:

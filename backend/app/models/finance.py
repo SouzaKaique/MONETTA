@@ -70,6 +70,8 @@ class Recurrence(IdMixin, TimestampMixin, db.Model):
     category_id: Mapped[UUID | None] = mapped_column(sa.ForeignKey("categories.id", ondelete="SET NULL"))
     # Gasto fixo no cartão: cada ocorrência vira uma compra na fatura, não uma saída da conta.
     card_id: Mapped[UUID | None] = mapped_column(sa.ForeignKey("credit_cards.id", ondelete="RESTRICT"))
+    # Só no cartão: parte de outras pessoas em cada cobrança (assinatura dividida).
+    others_amount: Mapped[Money] = mapped_column(default=Decimal("0.00"), server_default="0")
     kind: Mapped[str] = mapped_column(sa.String(10))
     name: Mapped[str] = mapped_column(sa.String(160))
     is_salary: Mapped[bool] = mapped_column(default=False)
