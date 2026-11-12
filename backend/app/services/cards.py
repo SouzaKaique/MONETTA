@@ -24,11 +24,12 @@ def split_installments(total: Decimal, count: int) -> list[Decimal]:
 
 def invoice_month_for(card: CreditCard, day: date) -> date:
     """
-    Mês de vencimento da fatura que recebe uma compra. Compra feita até o dia do
-    fechamento entra na fatura que está fechando; depois dele, na seguinte.
+    Mês de vencimento da fatura que recebe uma compra. Compra feita antes do dia do
+    fechamento entra na fatura que está fechando; no próprio dia ou depois, na seguinte.
+    É a regra dos bancos: o dia do fechamento é o "melhor dia de compra".
     """
     closing = clamp_day(day.year, day.month, card.closing_day)
-    year, month = (day.year, day.month) if day <= closing else shift_month(day.year, day.month, 1)
+    year, month = (day.year, day.month) if day < closing else shift_month(day.year, day.month, 1)
     if card.due_day < card.closing_day:
         year, month = shift_month(year, month, 1)
     return date(year, month, 1)
@@ -105,11 +106,12 @@ def invoice_status(invoice: Invoice, today: date) -> str:
         return "overdue"
     if paid > 0:
         return "partial"
-    if today > invoice.closing_date:
+    # No dia do fechamento a fatura já não recebe compras: está fechada.
+    if today >= invoice.closing_date:
         return "closed"
     # A primeira fatura ainda não fechada é a atual; as demais são futuras.
     previous_month_closing = _previous_closing(invoice)
-    return "open" if today > previous_month_closing else "future"
+    return "open" if today >= previous_month_closing else "future"
 
 
 def _previous_closing(invoice: Invoice) -> date:
@@ -146,7 +148,7 @@ def card_summary(card: CreditCard, today: date) -> dict:
     unpaid = [i for i in invoices if invoice_status(i, today) != "paid"]
     future = [i for i in invoices if invoice_status(i, today) == "future"]
     # Pelo ciclo, não pela situação: a fatura atual continua sendo a atual depois de paga.
-    current = next((i for i in invoices if i.closing_date >= today), None)
+    current = next((i for i in invoices if i.closing_date > today), None)
     upcoming = unpaid[0] if unpaid else None
     return {
         "used": used,
