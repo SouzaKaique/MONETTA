@@ -45,10 +45,12 @@
   </main>
 </div>
 
-<button type="button" class="quick-add" (click)="quickExpense.set(true)">
-  <i class="bi bi-plus-lg" aria-hidden="true"></i>
-  <span>Nova despesa</span>
-</button>
+@if (showQuickAdd()) {
+  <button type="button" class="quick-add" (click)="quickExpense.set(true)">
+    <i class="bi bi-plus-lg" aria-hidden="true"></i>
+    <span>Nova despesa</span>
+  </button>
+}
 
 @if (quickExpense()) {
   <app-transaction-form kind="expense" [allowCard]="true" (useCard)="quickPurchase.set(true)"

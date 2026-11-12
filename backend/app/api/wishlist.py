@@ -7,6 +7,7 @@ from ..models import (
     CardPurchase, CreditCard, GoalContribution, SavingsGoal, Transaction, WishlistImage,
     WishlistItem,
 )
+from ..models.wishlist import URL_MAX
 from ..services import advice, cards
 from ..services import wishlist as service
 from ..services.balances import ZERO
@@ -29,8 +30,8 @@ IMAGE_URL = validate.URL(schemes={"https"}, require_tld=True)
 class ItemSchema(Schema):
     name = fields.String(required=True, validate=NAME)
     price = MoneyField(required=True)
-    image_url = fields.String(load_default=None, allow_none=True, validate=[validate.Length(max=500), IMAGE_URL])
-    store_url = fields.String(load_default=None, allow_none=True, validate=[validate.Length(max=500), WEB_URL])
+    image_url = fields.String(load_default=None, allow_none=True, validate=[validate.Length(max=URL_MAX), IMAGE_URL])
+    store_url = fields.String(load_default=None, allow_none=True, validate=[validate.Length(max=URL_MAX), WEB_URL])
     category_id = fields.UUID(load_default=None, allow_none=True)
     priority = fields.Integer(load_default=2, validate=PRIORITY)
     status = fields.String(load_default="desired", validate=OPEN_STATUS)
@@ -43,8 +44,8 @@ class ItemSchema(Schema):
 class ItemUpdateSchema(Schema):
     name = fields.String(validate=NAME)
     price = MoneyField()
-    image_url = fields.String(allow_none=True, validate=[validate.Length(max=500), IMAGE_URL])
-    store_url = fields.String(allow_none=True, validate=[validate.Length(max=500), WEB_URL])
+    image_url = fields.String(allow_none=True, validate=[validate.Length(max=URL_MAX), IMAGE_URL])
+    store_url = fields.String(allow_none=True, validate=[validate.Length(max=URL_MAX), WEB_URL])
     category_id = fields.UUID(allow_none=True)
     priority = fields.Integer(validate=PRIORITY)
     status = fields.String(validate=OPEN_STATUS)
