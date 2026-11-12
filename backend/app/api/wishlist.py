@@ -8,7 +8,7 @@ from ..models import (
     WishlistItem,
 )
 from ..models.wishlist import URL_MAX
-from ..services import advice, cards
+from ..services import advice, cards, product_image
 from ..services import wishlist as service
 from ..services.balances import ZERO
 from ..services.cards import create_installments, invoice_month_for
@@ -312,15 +312,11 @@ def can_buy():
 
 # Imagens
 
-def _image_type(data: bytes) -> str | None:
-    """Confere o conteúdo: extensão e tipo informados pelo navegador podem mentir."""
-    if data.startswith(b"\x89PNG\r\n\x1a\n"):
-        return "image/png"
-    if data.startswith(b"\xff\xd8\xff"):
-        return "image/jpeg"
-    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
-        return "image/webp"
-    return None
+def _store_image(item: WishlistItem, data: bytes, content_type: str) -> None:
+    if item.image:
+        item.image.data, item.image.content_type = data, content_type
+    else:
+        item.image = WishlistImage(data=data, content_type=content_type)
 
 
 @bp.post("/wishlist/<uuid:item_id>/image")
@@ -333,13 +329,29 @@ def upload_image(item_id):
     data = file.read(MAX_IMAGE_BYTES + 1)
     if len(data) > MAX_IMAGE_BYTES:
         return error("A imagem precisa ter até 2 MB.", 422)
-    content_type = _image_type(data)
+    content_type = product_image.image_type(data)
     if content_type is None:
         return error("Use uma imagem PNG, JPEG ou WEBP.", 422)
-    if item.image:
-        item.image.data, item.image.content_type = data, content_type
-    else:
-        item.image = WishlistImage(data=data, content_type=content_type)
+    _store_image(item, data, content_type)
+    db.session.commit()
+    return jsonify(item_payload(item))
+
+
+@bp.post("/wishlist/<uuid:item_id>/image/fetch")
+@login_required
+def fetch_image(item_id):
+    """Guarda uma cópia da foto: do endereço da imagem ou, sem ele, da página da loja."""
+    item = owned(WishlistItem, item_id)
+    try:
+        if item.image_url:
+            data, content_type = product_image.download_image(item.image_url)
+        elif item.store_url:
+            data, content_type, _ = product_image.image_from_store(item.store_url)
+        else:
+            return error("Informe o link da loja ou o endereço da imagem.", 422)
+    except product_image.ImageNotFound as exc:
+        return error(str(exc), 422)
+    _store_image(item, data, content_type)
     db.session.commit()
     return jsonify(item_payload(item))
 
