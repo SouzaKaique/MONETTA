@@ -38,7 +38,9 @@
         Continuar com Google
       </button>
     </div>
-    @if (providers() && !providers()?.google) {
+    @if (offline()) {
+      <p class="subtle mt-2 mb-0">O MONETTA não está respondendo. Abra o <strong>MONETTA.cmd</strong> e recarregue a página.</p>
+    } @else if (providers() && !providers()?.google) {
       <p class="subtle mt-2 mb-0">O login com Google ainda não foi configurado neste servidor.</p>
     }
 
