@@ -166,6 +166,10 @@ export class FinanceService {
     }));
   }
 
+  updatePurchase(id: string, body: object): Observable<Purchase> {
+    return this.changed(this.http.patch<Purchase>(`/api/purchases/${id}`, body));
+  }
+
   deletePurchase(id: string): Observable<unknown> {
     return this.changed(this.http.delete(`/api/purchases/${id}`));
   }

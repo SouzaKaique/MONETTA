@@ -54,3 +54,7 @@
 @media (max-width: 767.98px) {
   .two-col { grid-template-columns: minmax(0, 1fr); }
 }
+
+.share-note { color: var(--ink-2); display: block; font-size: 0.8rem; margin-top: 0.15rem; }
+.row-amount.annulled { color: var(--ink-3); text-decoration: line-through; }
+.share-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: flex-end; }

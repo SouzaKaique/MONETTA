@@ -112,7 +112,8 @@ def by_category(user_id: UUID, start: date, end: date) -> list[dict]:
     for name, total in cards.installments_by_category(user_id, start, end).items():
         totals[name] = totals.get(name, ZERO) + total
     ordered = sorted(totals.items(), key=lambda item: item[1], reverse=True)
-    return [{"category": name or "Sem categoria", "total": total} for name, total in ordered]
+    # Compra anulada inteira deixa a categoria zerada: não aparece.
+    return [{"category": name or "Sem categoria", "total": total} for name, total in ordered if total > 0]
 
 
 def monthly_capacity(user_id: UUID, settings: AppSettings, today: date) -> Decimal | None:

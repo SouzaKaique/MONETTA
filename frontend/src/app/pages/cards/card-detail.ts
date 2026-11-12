@@ -4,7 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { FinanceService } from '../../core/finance.service';
 import { formatDate, formatMoney, formatMonth, formatMonthShort, moneyToInput, parseMoney, todayIso } from '../../core/format';
 import { apiMessage } from '../../core/http';
-import { Account, CardDetail, Invoice, InvoiceDetail, InvoiceStatus, Purchase } from '../../core/models';
+import { Account, CardDetail, Installment, Invoice, InvoiceDetail, InvoiceStatus, Purchase } from '../../core/models';
 import { Dialog } from '../../shared/dialog';
 import { PurchaseForm } from '../../shared/purchase-form';
 import { CardForm } from './card-form';
@@ -50,7 +50,13 @@ export class CardDetailPage {
   protected readonly deleting = signal<string | null>(null);
   protected readonly busy = signal(false);
   protected readonly payError = signal<string | null>(null);
+  protected readonly sharing = signal<Installment | null>(null);
+  protected readonly shareError = signal<string | null>(null);
   private payKey = crypto.randomUUID();
+
+  protected readonly shareForm = new FormGroup({
+    own: new FormControl('', { nonNullable: true }),
+  });
 
   protected readonly payForm = new FormGroup({
     amount: new FormControl('', { nonNullable: true }),
@@ -147,6 +153,42 @@ export class CardDetailPage {
     this.finance.deleteInvoicePayment(id).subscribe({
       next: () => this.deleting.set(null),
       error: (e) => this.error.set(apiMessage(e, 'Não foi possível remover.')),
+    });
+  }
+
+  protected isZero(value: string): boolean {
+    return Number(value) === 0;
+  }
+
+  protected openShare(item: Installment): void {
+    this.shareError.set(null);
+    const own = Number(item.purchase_total) - Number(item.purchase_others);
+    this.shareForm.reset({ own: moneyToInput(own.toFixed(2)) });
+    this.sharing.set(item);
+  }
+
+  /** Grava a parte de outras pessoas; `own` vem dos atalhos Anular e Tudo é meu. */
+  protected saveShare(dialog: Dialog, own?: string): void {
+    const item = this.sharing();
+    if (!item || this.busy()) return;
+    this.shareError.set(null);
+    const typed = own ?? parseMoney(this.shareForm.getRawValue().own || '0');
+    const total = Number(item.purchase_total);
+    if (typed === null || Number(typed) < 0 || Number(typed) > total) {
+      this.shareError.set(`Informe um valor entre 0,00 e ${moneyToInput(item.purchase_total)}.`);
+      return;
+    }
+    const others = (Math.round(total * 100) - Math.round(Number(typed) * 100)) / 100;
+    this.busy.set(true);
+    this.finance.updatePurchase(item.purchase_id, { others_amount: others.toFixed(2) }).subscribe({
+      next: () => {
+        this.busy.set(false);
+        dialog.close();
+      },
+      error: (e) => {
+        this.busy.set(false);
+        this.shareError.set(apiMessage(e, 'Não foi possível salvar.'));
+      },
     });
   }
 

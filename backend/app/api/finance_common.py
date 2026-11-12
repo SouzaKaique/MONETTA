@@ -131,6 +131,7 @@ def recurrence_payload(rec: Recurrence) -> dict:
         "account_id": str(rec.account_id) if rec.account_id else None,
         "card_id": str(rec.card_id) if rec.card_id else None,
         "card_name": rec.card.name if rec.card else None,
+        "others_amount": rec.others_amount,
         "payment_method": rec.payment_method, "notes": rec.notes,
         "amount_history": [
             {"amount": a.amount, "effective_from": a.effective_from.isoformat()}

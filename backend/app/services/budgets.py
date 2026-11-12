@@ -24,7 +24,7 @@ def spent_by_category(user_id: UUID, start: date, end: date) -> dict[UUID | None
         .group_by(Transaction.category_id)
     ).all()
     cards = db.session.execute(
-        sa.select(CardPurchase.category_id, sa.func.sum(Installment.amount))
+        sa.select(CardPurchase.category_id, sa.func.sum(Installment.own_amount()))
         .select_from(Installment)
         .join(Invoice, Installment.invoice_id == Invoice.id)
         .join(CardPurchase, Installment.purchase_id == CardPurchase.id)
