@@ -12,6 +12,7 @@ from .api import register_blueprints
 from .cli import register_commands
 from .config import Config
 from .extensions import db, migrate
+from .services.messages import translate_all
 from .services.ratelimit import RateLimiter
 
 CLIENT_HEADER = "X-Monetta-Client"
@@ -112,7 +113,7 @@ def create_app(config: type = Config) -> Flask:
 
     @app.errorhandler(ValidationError)
     def validation_error(exc: ValidationError):
-        return jsonify({"error": "Dados inválidos.", "fields": exc.messages}), 422
+        return jsonify({"error": "Dados inválidos.", "fields": translate_all(exc.messages)}), 422
 
     @app.errorhandler(HTTPException)
     def http_error(exc: HTTPException):

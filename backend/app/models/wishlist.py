@@ -17,6 +17,9 @@ from .common import IdMixin, Money, TimestampMixin
 from .finance import Category, Transaction
 
 
+URL_MAX = 2048
+
+
 class WishlistItem(IdMixin, TimestampMixin, db.Model):
     __tablename__ = "wishlist_items"
     __table_args__ = (
@@ -30,8 +33,9 @@ class WishlistItem(IdMixin, TimestampMixin, db.Model):
     user_id: Mapped[UUID] = mapped_column(sa.ForeignKey("users.id", ondelete="CASCADE"), index=True)
     category_id: Mapped[UUID | None] = mapped_column(sa.ForeignKey("categories.id", ondelete="SET NULL"))
     name: Mapped[str] = mapped_column(sa.String(120))
-    image_url: Mapped[str | None] = mapped_column(sa.String(500))
-    store_url: Mapped[str | None] = mapped_column(sa.String(500))
+    # Links de loja costumam vir com parâmetros de rastreio e passam fácil de 500 caracteres.
+    image_url: Mapped[str | None] = mapped_column(sa.String(URL_MAX))
+    store_url: Mapped[str | None] = mapped_column(sa.String(URL_MAX))
     price: Mapped[Money]
     priority: Mapped[int] = mapped_column(default=2)  # 1 alta, 2 média, 3 baixa
     status: Mapped[str] = mapped_column(sa.String(10), default="desired")

@@ -508,3 +508,20 @@ def test_categoria_de_outro_usuario_e_recusada(client, make_client, setup):
     register(other, email="bia@example.com", name="Bia")
     res = other.post("/api/wishlist", json={"name": "x", "price": "1", "category_id": lazer})
     assert res.status_code == 422
+
+
+def test_aceita_link_longo_de_loja(client, setup):
+    """Links do Mercado Livre vêm com rastreio e passam de 500 caracteres."""
+    link = "https://www.mercadolivre.com.br/memoria-ram?" + "x" * 1200
+    res = client.post("/api/wishlist", json={"name": "Memória", "price": "400", "store_url": link})
+    assert res.status_code == 201
+    assert res.json["store_url"] == link
+
+
+def test_erro_de_validacao_vem_em_portugues(client, setup):
+    link = "https://loja.example/" + "x" * 2100
+    res = client.post("/api/wishlist", json={"name": "Memória", "price": "400", "store_url": link})
+    assert res.status_code == 422
+    assert res.json["fields"]["store_url"] == ["Texto muito longo: use no máximo 2048 caracteres."]
+    res = client.post("/api/wishlist", json={"price": "400"})
+    assert res.json["fields"]["name"] == ["Campo obrigatório."]

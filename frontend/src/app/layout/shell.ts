@@ -1,5 +1,7 @@
-import { Component, effect, inject, signal, untracked } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { filter, map } from 'rxjs';
 import { AuthService } from '../core/auth.service';
 import { FinanceService } from '../core/finance.service';
 import { MOBILE_ITEMS, MORE_ITEMS, NAV_ITEMS } from '../core/navigation';
@@ -24,6 +26,20 @@ export class Shell {
   protected readonly quickExpense = signal(false);
   protected readonly quickPurchase = signal(false);
   protected readonly exact = { exact: true };
+
+  /** Telas onde registrar uma despesa não faz parte do que a pessoa está fazendo. */
+  private static readonly NO_QUICK_ADD = ['/wishlist'];
+  private readonly router = inject(Router);
+  private readonly url = toSignal(
+    this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+      map((e) => e.urlAfterRedirects),
+    ),
+    { initialValue: this.router.url },
+  );
+  protected readonly showQuickAdd = computed(
+    () => !Shell.NO_QUICK_ADD.some((path) => this.url().startsWith(path)),
+  );
 
   constructor() {
     // Lançamentos podem gerar avisos: o contador acompanha cada mudança.
