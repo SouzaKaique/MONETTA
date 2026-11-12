@@ -23,8 +23,8 @@ from ..models.common import utcnow
 VERSION = 1
 # Ordem das dependências: cada tabela só aponta para as anteriores.
 MODELS = [
-    Account, Category, Recurrence, RecurrenceAmount, RecurrenceSkip, Transaction, Transfer,
-    CreditCard, Invoice, CardPurchase, Installment, InvoicePayment, Debt, DebtPayment, Budget,
+    Account, Category, CreditCard, Recurrence, RecurrenceAmount, RecurrenceSkip, Transaction,
+    Transfer, Invoice, CardPurchase, Installment, InvoicePayment, Debt, DebtPayment, Budget,
     RecoveryPlan, WishlistItem, SavingsGoal, GoalContribution, WishlistImage,
 ]
 # Tabelas sem user_id, ligadas ao dono pela tabela pai.

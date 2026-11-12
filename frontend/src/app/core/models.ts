@@ -155,6 +155,8 @@ export interface Recurrence {
   category_id: string | null;
   category_name: string | null;
   account_id: string | null;
+  card_id: string | null;
+  card_name: string | null;
   payment_method: string | null;
   notes: string | null;
   amount_history: { amount: string; effective_from: string }[];

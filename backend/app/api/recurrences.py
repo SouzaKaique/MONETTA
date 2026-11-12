@@ -6,10 +6,10 @@ from flask import Blueprint, g, jsonify, request
 from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 
 from ..extensions import db
-from ..models import Recurrence, RecurrenceAmount
+from ..models import CreditCard, Recurrence, RecurrenceAmount
 from ..services import recurrences as service
 from ..services.periods import parse_month
-from .common import load_body, login_required
+from .common import error, load_body, login_required
 from .finance_common import (
     MoneyField, PaymentField, check_account, check_category, owned, recurrence_payload, today,
 )
@@ -34,11 +34,14 @@ class RecurrenceSchema(Schema):
     is_salary = fields.Boolean(load_default=False)
     category_id = fields.UUID(load_default=None, allow_none=True)
     account_id = fields.UUID(load_default=None, allow_none=True)
+    card_id = fields.UUID(load_default=None, allow_none=True)
     payment_method = PaymentField(load_default=None)
     notes = fields.String(load_default=None, **NOTES)
 
     @validates_schema
     def check_rules(self, data, **kwargs):
+        if data.get("card_id") and data["kind"] != "expense":
+            raise ValidationError({"card_id": ["Apenas despesas podem ir para o cartão."]})
         if data["frequency"] == "monthly" and data.get("day_of_month") is None:
             raise ValidationError({"day_of_month": ["Informe o dia."]})
         if data.get("end_date") and data["end_date"] < data["start_date"]:
@@ -57,8 +60,18 @@ class RecurrenceUpdateSchema(Schema):
     active = fields.Boolean()
     category_id = fields.UUID(allow_none=True)
     account_id = fields.UUID(allow_none=True)
+    card_id = fields.UUID(allow_none=True)
     payment_method = PaymentField()
     notes = fields.String(**NOTES)
+
+
+def _check_card(card_id) -> CreditCard | None:
+    if card_id is None:
+        return None
+    card = owned(CreditCard, card_id)
+    if not card.active:
+        raise ValidationError({"card_id": ["Este cartão está desativado."]})
+    return card
 
 
 @bp.get("")
@@ -79,6 +92,8 @@ def create_recurrence():
     data = load_body(RecurrenceSchema())
     check_account(data["account_id"])
     check_category(data["category_id"], data["kind"])
+    if _check_card(data["card_id"]):
+        data["account_id"] = None  # a saída da conta é o pagamento da fatura
     amount = data.pop("amount")
     data["name"] = data["name"].strip()
     data["day_of_month"] = data["day_of_month"] or data["start_date"].day
@@ -116,6 +131,12 @@ def update_recurrence(rec_id):
         check_account(data["account_id"])
     if "category_id" in data:
         check_category(data["category_id"], rec.kind)
+    if data.get("card_id"):
+        if rec.kind != "expense":
+            return error("Apenas despesas podem ir para o cartão.", 422)
+        if data["card_id"] != rec.card_id:
+            _check_card(data["card_id"])
+        data["account_id"] = None  # a saída da conta é o pagamento da fatura
 
     amount = data.pop("amount", None)
     active = data.pop("active", None)
