@@ -276,6 +276,11 @@ export class FinanceService {
     return this.changed(this.http.post<WishlistItem>(`/api/wishlist/${id}/image`, data));
   }
 
+  /** O servidor guarda uma cópia da foto: do endereço da imagem ou da página da loja. */
+  fetchWishlistImage(id: string): Observable<WishlistItem> {
+    return this.changed(this.http.post<WishlistItem>(`/api/wishlist/${id}/image/fetch`, {}));
+  }
+
   contribute(id: string, body: object, idempotencyKey: string): Observable<WishlistItem> {
     return this.changed(this.http.post<WishlistItem>(`/api/wishlist/${id}/contributions`, body, {
       headers: { 'Idempotency-Key': idempotencyKey },

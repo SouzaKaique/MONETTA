@@ -55,16 +55,25 @@ const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
           <label class="form-label" for="wl-store">Link da loja (opcional)</label>
           <input id="wl-store" class="form-control" type="url" formControlName="store_url" placeholder="https://" />
         </div>
-        <div class="grid-2 mb-3">
-          <div>
-            <label class="form-label" for="wl-image-url">Endereço da imagem (opcional)</label>
-            <input id="wl-image-url" class="form-control" type="url" formControlName="image_url" placeholder="https://" />
+        <div class="photo mb-3">
+          <div class="preview" aria-hidden="true">
+            @if (preview(); as src) { <img [src]="src" alt="" referrerpolicy="no-referrer" /> }
+            @else { <i class="bi bi-image"></i> }
           </div>
-          <div>
-            <label class="form-label" for="wl-image">Ou envie uma imagem</label>
+          <div class="photo-fields">
+            <label class="form-label" for="wl-image">Foto (opcional)</label>
             <input id="wl-image" class="form-control" type="file" accept="image/png,image/jpeg,image/webp"
                    (change)="pickFile($event)" />
+            <p class="subtle mt-1 mb-0">
+              @if (pasted()) { Imagem colada. }
+              @else { Dica: na loja, clique com o botão direito na foto, escolha "Copiar imagem" e aperte Ctrl+V aqui. }
+              Sem foto, buscamos pelo link da loja.
+            </p>
           </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="wl-image-url">Endereço da imagem (opcional)</label>
+          <input id="wl-image-url" class="form-control" type="url" formControlName="image_url" placeholder="https://" />
         </div>
 
         <h3 class="sub">Meta de economia</h3>
@@ -95,7 +104,18 @@ const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
       </form>
     </app-dialog>
   `,
-  styles: `.sub { font-size: 0.875rem; font-weight: 600; margin: 0 0 0.5rem; }`,
+  styles: `
+    .sub { font-size: 0.875rem; font-weight: 600; margin: 0 0 0.5rem; }
+    .photo { display: flex; gap: 0.75rem; align-items: flex-start; }
+    .photo-fields { flex: 1; min-width: 0; }
+    .preview {
+      width: 4.5rem; height: 4.5rem; flex: none; border-radius: 0.5rem; overflow: hidden;
+      display: grid; place-items: center; background: var(--surface-2, rgba(127, 127, 127, 0.1));
+      color: var(--muted, inherit); font-size: 1.5rem;
+    }
+    .preview img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+  `,
+  host: { '(document:paste)': 'paste($event)' },
 })
 export class WishlistItemForm implements OnInit {
   private readonly finance = inject(FinanceService);
@@ -105,6 +125,10 @@ export class WishlistItemForm implements OnInit {
 
   private readonly dialog = viewChild.required(Dialog);
   private file: File | null = null;
+  /** Depois do primeiro salvar, novas tentativas editam o mesmo item em vez de criar outro. */
+  private savedId: string | null = null;
+  protected readonly preview = signal<string | null>(null);
+  protected readonly pasted = signal(false);
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly isOpen = computed(() => {
@@ -146,13 +170,39 @@ export class WishlistItemForm implements OnInit {
         target_date: item.target_date ?? '',
         notes: item.notes ?? '',
       });
+      this.preview.set(item.has_upload ? `/api/wishlist/${item.id}/image` : item.image_url);
     }
   }
 
   protected pickFile(event: Event): void {
-    const file = (event.target as HTMLInputElement).files?.[0] ?? null;
-    this.error.set(file && file.size > MAX_IMAGE_BYTES ? 'A imagem precisa ter até 2 MB.' : null);
-    this.file = file && file.size <= MAX_IMAGE_BYTES ? file : null;
+    this.useFile((event.target as HTMLInputElement).files?.[0] ?? null);
+    this.pasted.set(false);
+  }
+
+  /** Imagem copiada da loja e colada com Ctrl+V. Texto colado nos campos segue normal. */
+  protected paste(event: ClipboardEvent): void {
+    const file = Array.from(event.clipboardData?.files ?? []).find((f) => f.type.startsWith('image/'));
+    if (!file) return;
+    event.preventDefault();
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+      this.error.set('Use uma imagem PNG, JPEG ou WEBP.');
+      return;
+    }
+    if (this.useFile(file)) this.pasted.set(true);
+  }
+
+  private useFile(file: File | null): boolean {
+    const tooBig = !!file && file.size > MAX_IMAGE_BYTES;
+    this.error.set(tooBig ? 'A imagem precisa ter até 2 MB.' : null);
+    if (tooBig) return false;
+    this.file = file;
+    if (file) {
+      // data: em vez de blob:, que a política de segurança do app não libera para imagens.
+      const reader = new FileReader();
+      reader.onload = () => this.preview.set(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+    return true;
   }
 
   protected save(): void {
@@ -185,19 +235,40 @@ export class WishlistItemForm implements OnInit {
       ...(this.isOpen() ? { status: value.status } : {}),
     };
     this.busy.set(true);
-    this.finance.saveWishlistItem(body, item?.id).subscribe({
+    const retry = this.savedId !== null;
+    this.finance.saveWishlistItem(body, item?.id ?? this.savedId ?? undefined).subscribe({
       next: (saved) => {
-        if (!this.file) {
+        this.savedId = saved.id;
+        if (this.file) {
+          this.finance.uploadWishlistImage(saved.id, this.file).subscribe({
+            next: () => this.dialog().close(),
+            error: (e) => this.fail(e, 'O item foi salvo, mas a imagem não.'),
+          });
+          return;
+        }
+        // Já avisamos que a foto não veio: salvar de novo sem imagem apenas fecha.
+        if (retry || !this.shouldFetch(item, body.image_url, body.store_url)) {
           this.dialog().close();
           return;
         }
-        this.finance.uploadWishlistImage(saved.id, this.file).subscribe({
+        this.finance.fetchWishlistImage(saved.id).subscribe({
           next: () => this.dialog().close(),
-          error: (e) => this.fail(e, 'O item foi salvo, mas a imagem não.'),
+          error: (e) => {
+            const reason = apiMessage(e, 'Não foi possível buscar a foto.');
+            this.error.set(`Item salvo, mas a foto não veio. ${reason}`);
+            this.busy.set(false);
+          },
         });
       },
       error: (e) => this.fail(e, 'Não foi possível salvar.'),
     });
+  }
+
+  /** Item novo com algum link, ou links alterados na edição. Editar só o resto não busca de novo. */
+  private shouldFetch(before: WishlistItem | null, imageUrl: string | null, storeUrl: string | null): boolean {
+    if (!before) return !!(imageUrl || storeUrl);
+    if (imageUrl && imageUrl !== before.image_url) return true;
+    return !imageUrl && !before.has_upload && !!storeUrl && storeUrl !== before.store_url;
   }
 
   private fail(e: unknown, fallback: string): void {
