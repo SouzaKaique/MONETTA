@@ -8,8 +8,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 from ..extensions import db
-from ..models import CardPurchase, CreditCard, Installment, Invoice, InvoicePayment
+from ..models import CardPurchase, CreditCard, Installment, Invoice, InvoicePayment, Recurrence
 from ..services import cards as service
+from ..services.recurrences import generate, generation_horizon, skip_occurrence
 from ..services.periods import month_bounds, parse_month
 from .common import error, load_body, login_required
 from .finance_common import (
@@ -151,6 +152,7 @@ def _idempotency_key() -> str | None:
 @bp.get("/cards")
 @login_required
 def list_cards():
+    generate(g.user.id, generation_horizon(today()))  # gastos fixos no cartão
     cards = db.session.scalars(
         sa.select(CreditCard).where(CreditCard.user_id == g.user.id)
         .order_by(CreditCard.active.desc(), CreditCard.created_at)
@@ -172,6 +174,7 @@ def create_card():
 @bp.get("/cards/<uuid:card_id>")
 @login_required
 def get_card(card_id):
+    generate(g.user.id, generation_horizon(today()))  # gastos fixos no cartão
     card = owned(CreditCard, card_id)
     return jsonify({
         **card_payload(card),
@@ -207,6 +210,8 @@ def delete_card(card_id):
     used = db.session.scalar(sa.select(sa.exists().where(CardPurchase.card_id == card.id)))
     if used:
         return error("Este cartão tem compras. Desative-o para preservar o histórico.", 409)
+    if db.session.scalar(sa.select(sa.exists().where(Recurrence.card_id == card.id))):
+        return error("Este cartão tem gastos fixos. Mude-os de cartão ou apague-os antes.", 409)
     db.session.delete(card)
     db.session.commit()
     return "", 204
@@ -272,6 +277,7 @@ def _first_month(card: CreditCard, data: dict) -> date:
 @bp.get("/cards/<uuid:card_id>/purchases")
 @login_required
 def list_purchases(card_id):
+    generate(g.user.id, generation_horizon(today()))  # gastos fixos no cartão
     card = owned(CreditCard, card_id)
     purchases = db.session.scalars(
         sa.select(CardPurchase).where(CardPurchase.card_id == card.id)
@@ -333,6 +339,9 @@ def delete_purchase(purchase_id):
     if service.has_paid_invoice(purchase):
         return error("Há pagamento em uma fatura desta compra. Remova o pagamento antes.", 409)
     card_id = purchase.card_id
+    if purchase.recurrence_id and purchase.occurrence_date:
+        # Gasto fixo apagado em um mês: não volta na próxima geração.
+        skip_occurrence(purchase)
     db.session.delete(purchase)
     db.session.flush()
     service.remove_empty_invoices(card_id)
@@ -344,6 +353,7 @@ def delete_purchase(purchase_id):
 @login_required
 def list_installments():
     """Parcelas que pesam no mês, de todos os cartões."""
+    generate(g.user.id, generation_horizon(today()))
     parsed = parse_month(request.args.get("month"))
     if parsed is None:
         raise ValidationError({"month": ["Use AAAA-MM."]})

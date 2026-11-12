@@ -68,6 +68,8 @@ class Recurrence(IdMixin, TimestampMixin, db.Model):
     user_id: Mapped[UUID] = mapped_column(sa.ForeignKey("users.id", ondelete="CASCADE"), index=True)
     account_id: Mapped[UUID | None] = mapped_column(sa.ForeignKey("accounts.id", ondelete="SET NULL"))
     category_id: Mapped[UUID | None] = mapped_column(sa.ForeignKey("categories.id", ondelete="SET NULL"))
+    # Gasto fixo no cartão: cada ocorrência vira uma compra na fatura, não uma saída da conta.
+    card_id: Mapped[UUID | None] = mapped_column(sa.ForeignKey("credit_cards.id", ondelete="RESTRICT"))
     kind: Mapped[str] = mapped_column(sa.String(10))
     name: Mapped[str] = mapped_column(sa.String(160))
     is_salary: Mapped[bool] = mapped_column(default=False)
@@ -87,6 +89,7 @@ class Recurrence(IdMixin, TimestampMixin, db.Model):
     )
     skips: Mapped[list["RecurrenceSkip"]] = relationship(cascade="all, delete-orphan")
     category: Mapped[Category | None] = relationship()
+    card: Mapped["CreditCard | None"] = relationship()  # noqa: F821
 
 
 class RecurrenceAmount(IdMixin, db.Model):

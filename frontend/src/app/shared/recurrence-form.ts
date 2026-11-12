@@ -3,7 +3,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { FinanceService } from '../core/finance.service';
 import { FREQUENCIES, PAYMENT_METHODS, frequencyLabel, moneyToInput, parseMoney, todayIso } from '../core/format';
 import { apiMessage } from '../core/http';
-import { Account, Category, Kind, Recurrence } from '../core/models';
+import { Account, Category, CreditCard, Kind, Recurrence } from '../core/models';
 import { Dialog } from './dialog';
 
 @Component({
@@ -50,7 +50,7 @@ import { Dialog } from './dialog';
           }
           @if (isMonthly()) {
             <div>
-              <label class="form-label" for="rc-day">Dia {{ kind() === 'income' ? 'do recebimento' : 'do vencimento' }}</label>
+              <label class="form-label" for="rc-day">Dia {{ kind() === 'income' ? 'do recebimento' : onCard() ? 'da cobrança' : 'do vencimento' }}</label>
               <input id="rc-day" class="form-control" type="number" min="1" max="31" formControlName="day_of_month" />
             </div>
           }
@@ -69,15 +69,27 @@ import { Dialog } from './dialog';
             </select>
           </div>
           <div>
-            <label class="form-label" for="rc-account">Conta</label>
-            <select id="rc-account" class="form-select" formControlName="account_id">
+            <label class="form-label" for="rc-account">{{ kind() === 'expense' ? 'Pago com' : 'Conta' }}</label>
+            <select id="rc-account" class="form-select" formControlName="source">
               <option value="">Definir depois</option>
-              @for (a of accounts(); track a.id) { <option [value]="a.id">{{ a.name }}</option> }
+              @if (kind() === 'expense' && cards().length) {
+                <optgroup label="Contas">
+                  @for (a of accounts(); track a.id) { <option [value]="'account:' + a.id">{{ a.name }}</option> }
+                </optgroup>
+                <optgroup label="Cartões de crédito">
+                  @for (c of cards(); track c.id) { <option [value]="'card:' + c.id">{{ c.name }}</option> }
+                </optgroup>
+              } @else {
+                @for (a of accounts(); track a.id) { <option [value]="'account:' + a.id">{{ a.name }}</option> }
+              }
             </select>
           </div>
         </div>
+        @if (onCard()) {
+          <p class="subtle mb-3">Entra todo mês na fatura do cartão, no dia da cobrança. A conta só é afetada quando você paga a fatura.</p>
+        }
 
-        @if (kind() === 'expense') {
+        @if (kind() === 'expense' && !onCard()) {
           <div class="mb-3">
             <label class="form-label" for="rc-method">Forma de pagamento</label>
             <select id="rc-method" class="form-select" formControlName="payment_method">
@@ -114,6 +126,9 @@ export class RecurrenceForm implements OnInit {
   protected readonly methods = PAYMENT_METHODS;
   protected readonly currentMonth = todayIso().slice(0, 7);
   protected readonly accounts = signal<Account[]>([]);
+  protected readonly cards = signal<CreditCard[]>([]);
+  protected readonly source = signal('');
+  protected readonly onCard = computed(() => this.source().startsWith('card:'));
   protected readonly allCategories = signal<Category[]>([]);
   protected readonly categories = computed(() =>
     this.allCategories().filter((c) => c.kind === this.kind()),
@@ -137,7 +152,8 @@ export class RecurrenceForm implements OnInit {
     day_of_month: new FormControl<number | null>(Number(todayIso().slice(8))),
     end_date: new FormControl('', { nonNullable: true }),
     category_id: new FormControl('', { nonNullable: true }),
-    account_id: new FormControl('', { nonNullable: true }),
+    /** "account:<id>" ou "card:<id>": despesa fixa pode sair da conta ou entrar na fatura. */
+    source: new FormControl('', { nonNullable: true }),
     payment_method: new FormControl('', { nonNullable: true }),
     is_salary: new FormControl(false, { nonNullable: true }),
   });
@@ -145,7 +161,10 @@ export class RecurrenceForm implements OnInit {
   ngOnInit(): void {
     const rec = this.recurrence();
     this.form.controls.frequency.valueChanges.subscribe((v) => this.frequency.set(v));
+    this.form.controls.source.valueChanges.subscribe((v) => this.source.set(v));
     if (rec) {
+      const source = rec.card_id ? `card:${rec.card_id}` : rec.account_id ? `account:${rec.account_id}` : '';
+      this.source.set(source);
       this.frequency.set(rec.frequency);
       this.form.patchValue({
         name: rec.name,
@@ -154,7 +173,7 @@ export class RecurrenceForm implements OnInit {
         day_of_month: rec.day_of_month,
         end_date: rec.end_date ?? '',
         category_id: rec.category_id ?? '',
-        account_id: rec.account_id ?? '',
+        source,
         payment_method: rec.payment_method ?? '',
       });
     }
@@ -162,8 +181,11 @@ export class RecurrenceForm implements OnInit {
     this.finance.accounts().subscribe((all) => {
       const active = all.filter((a) => a.active);
       this.accounts.set(active);
-      if (!rec && active.length === 1) this.form.patchValue({ account_id: active[0].id });
+      if (!rec && active.length === 1) this.form.patchValue({ source: `account:${active[0].id}` });
     });
+    if (this.kind() === 'expense') {
+      this.finance.cards().subscribe((all) => this.cards.set(all.filter((c) => c.active)));
+    }
   }
 
   protected save(): void {
@@ -180,13 +202,16 @@ export class RecurrenceForm implements OnInit {
       return;
     }
 
+    const [sourceKind, sourceId] = value.source.split(':');
+    const onCard = sourceKind === 'card';
     const shared = {
       name: value.name.trim(),
       amount,
       end_date: value.end_date || null,
       category_id: value.category_id || null,
-      account_id: value.account_id || null,
-      payment_method: value.payment_method || null,
+      account_id: sourceKind === 'account' ? sourceId : null,
+      ...(this.kind() === 'expense' ? { card_id: onCard ? sourceId : null } : {}),
+      payment_method: onCard ? null : value.payment_method || null,
       ...(this.isMonthly() ? { day_of_month: value.day_of_month } : {}),
     };
     const rec = this.recurrence();

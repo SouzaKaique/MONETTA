@@ -69,6 +69,7 @@ class CardPurchase(IdMixin, TimestampMixin, db.Model):
         sa.CheckConstraint("total_amount > 0", name="amount_positive"),
         sa.CheckConstraint("installment_count BETWEEN 1 AND 48", name="installments_valid"),
         sa.UniqueConstraint("user_id", "idempotency_key"),
+        sa.UniqueConstraint("recurrence_id", "occurrence_date"),  # impede duplicar o gasto fixo
     )
 
     user_id: Mapped[UUID] = mapped_column(sa.ForeignKey("users.id", ondelete="CASCADE"), index=True)
@@ -80,6 +81,9 @@ class CardPurchase(IdMixin, TimestampMixin, db.Model):
     installment_count: Mapped[int] = mapped_column(default=1)
     notes: Mapped[str | None] = mapped_column(sa.Text)
     idempotency_key: Mapped[str | None] = mapped_column(sa.String(64))
+    # Gerada por um gasto fixo no cartão; continua na fatura se a regra for apagada.
+    recurrence_id: Mapped[UUID | None] = mapped_column(sa.ForeignKey("recurrences.id", ondelete="SET NULL"))
+    occurrence_date: Mapped[date | None]
 
     card: Mapped[CreditCard] = relationship()
     category: Mapped[Category | None] = relationship()

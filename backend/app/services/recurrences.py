@@ -3,6 +3,9 @@ Geração de lançamentos recorrentes.
 
 A geração é idempotente: roda antes de cada leitura, compara com o que já existe
 e a constraint (recurrence_id, occurrence_date) impede duplicar em requisições paralelas.
+
+Uma regra com cartão gera compras na fatura em vez de lançamentos na conta: a despesa
+conta uma vez, pela fatura, e o pagamento da fatura tira o dinheiro da conta.
 """
 from collections.abc import Iterator
 from datetime import date, timedelta
@@ -13,7 +16,10 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import insert
 
 from ..extensions import db
-from ..models import Recurrence, RecurrenceAmount, RecurrenceSkip, Transaction
+from ..models import (
+    CardPurchase, Installment, Recurrence, RecurrenceAmount, RecurrenceSkip, Transaction,
+)
+from . import cards
 from .periods import clamp_day, month_bounds, shift_month
 
 MAX_MONTHS_AHEAD = 24
@@ -73,14 +79,24 @@ def generate(user_id: UUID, until: date) -> int:
     ).all()
     created = 0
     for rec in rules:
+        if rec.card_id and not rec.card.active:
+            continue  # cartão desativado não recebe compras novas
+        # Ocorrências já criadas como lançamento ou compra contam: trocar a regra entre
+        # conta e cartão não recria meses que já existem do outro jeito.
         existing = db.session.scalars(
             sa.select(Transaction.occurrence_date).where(Transaction.recurrence_id == rec.id)
+            .union_all(
+                sa.select(CardPurchase.occurrence_date).where(CardPurchase.recurrence_id == rec.id)
+            )
         ).all()
         taken = {period_key(rec, d) for d in existing}
         taken |= {period_key(rec, s.occurrence_date) for s in rec.skips}
 
         for day in occurrences(rec, until):
             if period_key(rec, day) in taken:
+                continue
+            if rec.card_id:
+                created += _card_purchase(rec, day)
                 continue
             result = db.session.execute(
                 insert(Transaction).values(
@@ -96,6 +112,28 @@ def generate(user_id: UUID, until: date) -> int:
     if created:
         db.session.commit()
     return created
+
+
+def _card_purchase(rec: Recurrence, day: date) -> int:
+    """Compra à vista na fatura que recebe o dia da ocorrência."""
+    purchase_id = db.session.scalar(
+        insert(CardPurchase).values(
+            id=db.func.gen_random_uuid(), user_id=rec.user_id, card_id=rec.card_id,
+            category_id=rec.category_id, description=rec.name, total_amount=amount_for(rec, day),
+            purchase_date=day, installment_count=1, recurrence_id=rec.id, occurrence_date=day,
+            created_at=db.func.now(), updated_at=db.func.now(),
+        ).on_conflict_do_nothing(index_elements=["recurrence_id", "occurrence_date"])
+        .returning(CardPurchase.id)
+    )
+    if purchase_id is None:
+        return 0
+    invoice = cards.get_invoice(rec.card, cards.invoice_month_for(rec.card, day))
+    db.session.add(Installment(
+        user_id=rec.user_id, purchase_id=purchase_id, number=1,
+        amount=amount_for(rec, day), invoice_id=invoice.id,
+    ))
+    db.session.flush()
+    return 1
 
 
 def generation_horizon(today: date, requested: date | None = None) -> date:
@@ -130,7 +168,13 @@ def sync_pending(rec: Recurrence, start: date) -> None:
     """
     Leva a mudança da regra às ocorrências pendentes a partir de `start`.
     Confirmadas nunca mudam: são histórico. Editadas à mão mantêm o valor.
+    Compras no cartão em fatura ainda sem pagamento são refeitas pela próxima geração.
     """
+    _remove_purchases(rec, start)
+    if rec.card_id:
+        for tx in pending_from(rec, start):
+            db.session.delete(tx)
+        return
     for tx in pending_from(rec, start):
         if rec.frequency == "monthly":
             moved = clamp_day(tx.occurrence_date.year, tx.occurrence_date.month, rec.day_of_month)
@@ -146,6 +190,25 @@ def sync_pending(rec: Recurrence, start: date) -> None:
 def remove_pending(rec: Recurrence, start: date) -> None:
     for tx in pending_from(rec, start):
         db.session.delete(tx)
+    _remove_purchases(rec, start)
+
+
+def _remove_purchases(rec: Recurrence, start: date) -> None:
+    """Compras geradas a partir de `start`, exceto as de fatura que já recebeu pagamento."""
+    purchases = db.session.scalars(
+        sa.select(CardPurchase).where(
+            CardPurchase.recurrence_id == rec.id, CardPurchase.occurrence_date >= start,
+        )
+    ).all()
+    touched = set()
+    for purchase in purchases:
+        if not cards.has_paid_invoice(purchase):
+            touched.add(purchase.card_id)
+            db.session.delete(purchase)
+    if touched:
+        db.session.flush()
+        for card_id in touched:
+            cards.remove_empty_invoices(card_id)
 
 
 def skip_occurrence(tx: Transaction) -> None:

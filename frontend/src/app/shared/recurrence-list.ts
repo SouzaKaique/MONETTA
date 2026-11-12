@@ -96,7 +96,8 @@ export class RecurrenceList {
   }
 
   protected schedule(rec: Recurrence): string {
-    const when = rec.frequency === 'monthly' ? `todo dia ${rec.day_of_month}` : frequencyLabel(rec.frequency).toLowerCase();
+    let when = rec.frequency === 'monthly' ? `todo dia ${rec.day_of_month}` : frequencyLabel(rec.frequency).toLowerCase();
+    if (rec.card_name) when += ` · cartão ${rec.card_name}`;
     return rec.next_date ? `${when} · próxima em ${formatDate(rec.next_date)}` : when;
   }
 
