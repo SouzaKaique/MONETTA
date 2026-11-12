@@ -29,6 +29,8 @@ export class AuthPage implements OnInit {
   protected readonly mode = signal<'login' | 'register'>(this.route.snapshot.data['mode']);
   protected readonly isRegister = computed(() => this.mode() === 'register');
   protected readonly providers = signal<Providers | null>(null);
+  /** O app abre pela cópia guardada no navegador mesmo com o servidor desligado. */
+  protected readonly offline = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly busy = signal(false);
   protected readonly submitted = signal(false);
@@ -56,7 +58,10 @@ export class AuthPage implements OnInit {
     }
     this.auth.providers().subscribe({
       next: (p) => this.providers.set(p),
-      error: () => this.providers.set({ google: false, apple: false, registration: false }),
+      error: () => {
+        this.offline.set(true);
+        this.providers.set({ google: false, apple: false, registration: false });
+      },
     });
   }
 
