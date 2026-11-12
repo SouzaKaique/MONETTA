@@ -74,11 +74,15 @@ def fake_card(closing, due):
 
 
 @pytest.mark.parametrize("closing,due,day,expected", [
-    (20, 28, date(2026, 3, 20), date(2026, 3, 1)),  # no dia do fechamento ainda entra
-    (20, 28, date(2026, 3, 21), date(2026, 4, 1)),  # depois vai para a seguinte
+    (20, 28, date(2026, 3, 19), date(2026, 3, 1)),  # véspera do fechamento ainda entra
+    (20, 28, date(2026, 3, 20), date(2026, 4, 1)),  # no dia do fechamento já vai para a seguinte
+    (20, 28, date(2026, 3, 21), date(2026, 4, 1)),
+    (1, 8, date(2026, 11, 1), date(2026, 12, 1)),   # Nubank: compra do dia 1 vence no dia 8 seguinte
+    (1, 8, date(2026, 10, 31), date(2026, 11, 1)),
     (25, 5, date(2026, 3, 10), date(2026, 4, 1)),   # vence no mês depois do fechamento
     (25, 5, date(2026, 3, 26), date(2026, 5, 1)),
-    (31, 10, date(2026, 2, 28), date(2026, 3, 1)),  # dia 31 em fevereiro
+    (31, 10, date(2026, 2, 27), date(2026, 3, 1)),  # dia 31 em fevereiro fecha no dia 28
+    (31, 10, date(2026, 2, 28), date(2026, 4, 1)),
     (20, 28, date(2026, 12, 25), date(2027, 1, 1)),  # virada do ano
 ])
 def test_compra_cai_na_fatura_certa(closing, due, day, expected):
@@ -277,6 +281,8 @@ def test_limite_considera_parcelas_futuras_e_libera_ao_pagar(client, setup):
 
 @pytest.mark.parametrize("today,status", [
     (date(2026, 3, 15), "open"),
+    (date(2026, 3, 19), "open"),
+    (date(2026, 3, 20), "closed"),  # no dia do fechamento já não recebe compras
     (date(2026, 3, 22), "closed"),
     (date(2026, 3, 29), "overdue"),
 ])

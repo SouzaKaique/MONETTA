@@ -33,6 +33,7 @@ export const CARD_COLORS = ['forest', 'graphite', 'wine', 'navy', 'ochre', 'plum
           <div>
             <label class="form-label" for="cd-closing">Dia do fechamento</label>
             <input id="cd-closing" class="form-control" type="number" min="1" max="31" formControlName="closing_day" />
+            <div class="subtle mt-1">Compras desse dia já vão para a fatura seguinte.</div>
           </div>
           <div>
             <label class="form-label" for="cd-due">Dia do vencimento</label>

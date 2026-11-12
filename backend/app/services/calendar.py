@@ -46,7 +46,7 @@ def _invoices(user_id: UUID, start: date, end: date, today: date) -> list[dict]:
             events.append({
                 "id": f"closing:{invoice.id}", "type": "invoice_closing",
                 "date": invoice.closing_date.isoformat(), "title": f"Fechamento {invoice.card.name}",
-                "amount": total, "status": "done" if today > invoice.closing_date else "pending",
+                "amount": total, "status": "done" if today >= invoice.closing_date else "pending",
                 "link": link,
             })
         if start <= invoice.due_date <= end:
