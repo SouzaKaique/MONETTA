@@ -6,10 +6,29 @@ Arquitetura, modelo de dados e identidade visual: [docs/ARQUITETURA.md](docs/ARQ
 
 ## Usar no dia a dia
 
+### Sempre ligado (recomendado)
+
+Rode uma vez, no PowerShell, na pasta do projeto:
+
+```powershell
+.\scripts\inicio-automatico.ps1
+```
+
+A partir daí o MONETTA liga sozinho, sem janela, toda vez que você entra no Windows. É só abrir
+**http://monetta.localhost**. Se o servidor cair, ele volta sozinho em alguns segundos.
+
+- Desligar agora: `.\scripts\parar.ps1` (volta no próximo login).
+- Desativar o início automático: `.\scripts\inicio-automatico.ps1 -Remover`.
+- Também aparece em Gerenciador de Tarefas › Aplicativos de inicialização, como MONETTA.
+- Registros: `logs\monetta.log` (andamento) e `logs\servidor.log` (servidor).
+
+### Ligar na mão
+
 Dê dois cliques em **`MONETTA.cmd`**, na pasta do projeto. Ele liga o banco, prepara o app e abre
 **http://monetta.localhost** no navegador. Deixe a janela aberta enquanto usa e feche para encerrar.
+Se o MONETTA já estiver ligado, o atalho só abre o navegador.
 
-- O endereço funciona só neste computador.
+- O endereço funciona só neste computador, e só com ele ligado.
 - No Chrome ou no Edge, dá para instalar o MONETTA como aplicativo pelo ícone na barra de endereço.
 - Depois de mudar o código, o atalho recompila sozinho. Para forçar: `MONETTA.cmd -Recompilar`.
 
@@ -101,7 +120,8 @@ mesmo que o e-mail do Google seja outro. Depois disso, entra pelos dois jeitos.
 Na tela de login, **Esqueci minha senha** gera um link que vale por 30 minutos e só pode ser usado uma vez.
 Ao criar a nova senha, todas as sessões abertas são encerradas.
 
-- **Sem configurar nada**, o link aparece na janela do `MONETTA.cmd` (a janela preta). Copie e abra no navegador.
+- **Sem configurar nada**, o link aparece na janela do `MONETTA.cmd` (a janela preta) ou, com o
+  início automático, no arquivo `logs\servidor.log`. Copie e abra no navegador.
 - **Para receber por e-mail** com uma conta Gmail: ative a verificação em duas etapas, crie uma
   [senha de app](https://myaccount.google.com/apppasswords) e preencha no `.env`:
   `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, `SMTP_USER=seu@gmail.com`, `SMTP_PASSWORD=` (a senha de app)
