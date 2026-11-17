@@ -10,3 +10,4 @@ PyJWT[crypto]>=2.10,<3
 requests>=2.32,<3
 waitress>=3.0
 tzdata>=2025.1
+fpdf2>=2.8,<3

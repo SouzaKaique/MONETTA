@@ -3,7 +3,12 @@
     <h1 class="page-title">Wishlist</h1>
     <p class="muted mb-0">O que você quer comprar, com planejamento.</p>
   </div>
-  <div class="d-flex gap-2">
+  <div class="d-flex gap-2 flex-wrap justify-content-end">
+    <!-- Exporta a aba aberta: em aberto, comprados ou desistidos. -->
+    <a class="btn btn-quiet" [href]="'/api/wishlist/export.pdf?status=' + filter()" download
+       title="Baixar a lista em PDF, com fotos, especificações e links">
+      <i class="bi bi-file-earmark-pdf me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">Exportar </span>PDF
+    </a>
     <button type="button" class="btn btn-quiet" (click)="checkingOpen.set(true)">Posso comprar?</button>
     <button type="button" class="btn btn-brand" (click)="creating.set(true)">
       <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Item
