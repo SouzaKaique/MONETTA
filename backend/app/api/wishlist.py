@@ -8,7 +8,7 @@ from ..models import (
     WishlistItem,
 )
 from ..models.wishlist import URL_MAX
-from ..services import advice, cards, product_image
+from ..services import advice, cards, product_image, wishlist_pdf
 from ..services import wishlist as service
 from ..services.balances import ZERO
 from ..services.cards import create_installments, invoice_month_for
@@ -122,6 +122,21 @@ def list_items():
         "items": [item_payload(i) for i in items],
         "indicators": service.indicators(items, today()),
     })
+
+
+@bp.get("/wishlist/export.pdf")
+@login_required
+def export_pdf():
+    """PDF da lista do filtro escolhido: em aberto (padrão), comprados, desistidos ou todos."""
+    status = request.args.get("status", "open")
+    if status not in wishlist_pdf.FILTERS:
+        return error("Filtro inválido.", 400)
+    now = today()
+    data = wishlist_pdf.build(service.user_items(g.user.id), status, now, g.user.account_name)
+    response = Response(data, mimetype="application/pdf")
+    name = f"monetta-wishlist-{now.isoformat()}.pdf"
+    response.headers["Content-Disposition"] = f'attachment; filename="{name}"'
+    return response
 
 
 @bp.post("/wishlist")
