@@ -108,6 +108,11 @@ def invoice_total(invoice: Invoice) -> Decimal:
     return sum((i.amount for i in invoice.installments), ZERO)
 
 
+def invoice_others(invoice: Invoice) -> Decimal:
+    """Parte de outras pessoas (compras divididas ou anuladas): está no total, mas não é sua."""
+    return sum((i.others_amount for i in invoice.installments), ZERO)
+
+
 def invoice_paid(invoice: Invoice) -> Decimal:
     return sum((p.amount for p in invoice.payments), ZERO)
 

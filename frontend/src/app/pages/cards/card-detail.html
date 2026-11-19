@@ -85,6 +85,20 @@
           <div><dt>Pago</dt><dd class="money">{{ money(inv.paid) }}</dd></div>
           <div><dt>Restante</dt><dd class="money">{{ money(inv.remaining) }}</dd></div>
         </dl>
+        @if (!isZero(inv.others_total)) {
+          <div class="split-cards">
+            <div class="split own">
+              <span class="split-label">Sua parte</span>
+              <strong class="money">{{ money(inv.own_total) }}</strong>
+              <span class="split-hint">É o que conta como despesa sua</span>
+            </div>
+            <div class="split others">
+              <span class="split-label">De outras pessoas</span>
+              <strong class="money">{{ money(inv.others_total) }}</strong>
+              <span class="split-hint">Compras divididas ou anuladas: a receber</span>
+            </div>
+          </div>
+        }
 
         <ul class="rows mt-2">
           @for (item of inv.installments; track item.id) {

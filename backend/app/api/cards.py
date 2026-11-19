@@ -106,6 +106,7 @@ def card_payload(card: CreditCard) -> dict:
 
 def invoice_payload(invoice: Invoice) -> dict:
     total, paid = service.invoice_total(invoice), service.invoice_paid(invoice)
+    others = service.invoice_others(invoice)
     return {
         "id": str(invoice.id), "card_id": str(invoice.card_id),
         "card_name": invoice.card.name,
@@ -113,6 +114,7 @@ def invoice_payload(invoice: Invoice) -> dict:
         "closing_date": invoice.closing_date.isoformat(),
         "due_date": invoice.due_date.isoformat(),
         "total": total, "paid": paid, "remaining": total - paid,
+        "own_total": total - others, "others_total": others,
         "status": service.invoice_status(invoice, today()),
     }
 

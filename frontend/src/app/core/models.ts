@@ -194,6 +194,9 @@ export interface Invoice {
   total: string;
   paid: string;
   remaining: string;
+  /** Total menos o que é de outras pessoas (compras divididas ou anuladas). */
+  own_total: string;
+  others_total: string;
   status: InvoiceStatus;
 }
 

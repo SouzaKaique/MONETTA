@@ -66,6 +66,19 @@ def test_anular_tira_da_despesa_mas_nao_da_fatura(client, setup):
     assert all(c["category"] != "Lazer" for c in dashboard["by_category"])
 
 
+def test_fatura_mostra_sua_parte_e_a_dos_outros(client, setup):
+    inteira = buy(client, setup, amount="100.00")
+    dividida = buy(client, setup, amount="60.00")
+    buy(client, setup, amount="40.00")
+    client.patch(f"/api/purchases/{inteira['id']}", json={"others_amount": "100.00"})
+    client.patch(f"/api/purchases/{dividida['id']}", json={"others_amount": "40.00"})
+    inv = invoice(client, setup)
+    assert inv["total"] == "200.00"
+    assert inv["others_total"] == "140.00" and inv["own_total"] == "60.00"
+    tab = client.get(f"/api/cards/{setup.card['id']}").json["invoices"][0]
+    assert tab["own_total"] == "60.00" and tab["others_total"] == "140.00"
+
+
 def test_desfazer_volta_a_contar(client, setup):
     purchase = buy(client, setup)
     before = april(client)["summary"]["expenses_total"]
