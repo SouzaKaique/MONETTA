@@ -8,6 +8,7 @@ import { Account, CardDetail, Installment, Invoice, InvoiceDetail, InvoiceStatus
 import { Dialog } from '../../shared/dialog';
 import { PurchaseForm } from '../../shared/purchase-form';
 import { CardForm } from './card-form';
+import { ImportBill } from './import-bill';
 
 const STATUS: Record<InvoiceStatus, { label: string; tag: string }> = {
   future: { label: 'Futura', tag: '' },
@@ -20,7 +21,7 @@ const STATUS: Record<InvoiceStatus, { label: string; tag: string }> = {
 
 @Component({
   selector: 'app-card-detail',
-  imports: [ReactiveFormsModule, RouterLink, Dialog, CardForm, PurchaseForm],
+  imports: [ReactiveFormsModule, RouterLink, Dialog, CardForm, PurchaseForm, ImportBill],
   templateUrl: './card-detail.html',
   styleUrl: './card-detail.css',
 })
@@ -46,6 +47,7 @@ export class CardDetailPage {
   protected readonly error = signal<string | null>(null);
   protected readonly editing = signal(false);
   protected readonly buying = signal(false);
+  protected readonly importing = signal(false);
   protected readonly paying = signal(false);
   protected readonly deleting = signal<string | null>(null);
   protected readonly busy = signal(false);

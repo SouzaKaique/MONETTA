@@ -10,6 +10,7 @@ from sqlalchemy.orm import joinedload
 
 from ..extensions import db
 from ..models import CardPurchase, CreditCard, Installment, Invoice, InvoicePayment, Recurrence
+from ..services import card_import
 from ..services import cards as service
 from ..services.recurrences import generate, generation_horizon, skip_occurrence
 from ..services.periods import month_bounds, parse_month
@@ -389,3 +390,104 @@ def list_installments():
         "items": [installment_payload(i) for i in items],
         "total": service.installments_total(g.user.id, start, end),
     })
+
+
+# Importação da fatura (OFX ou CSV do banco)
+
+class ImportRowSchema(Schema):
+    external_id = fields.String(required=True, validate=validate.Length(min=1, max=64))
+    date = fields.Date(required=True)
+    description = fields.String(required=True, validate=validate.Length(min=1, max=160))
+    amount = MoneyField(required=True)
+    number = fields.Integer(load_default=1, validate=validate.Range(min=1, max=48))
+    count = fields.Integer(load_default=1, validate=validate.Range(min=1, max=48))
+    category_id = fields.UUID(load_default=None, allow_none=True)
+
+    @validates_schema
+    def check_number(self, data, **kwargs):
+        if data["number"] > data["count"]:
+            raise ValidationError({"number": ["Parcela maior que o total de parcelas."]})
+
+
+class ImportLinkSchema(Schema):
+    external_id = fields.String(required=True, validate=validate.Length(min=1, max=64))
+    installment_id = fields.UUID(required=True)
+    amount = MoneyField(load_default=None, allow_none=True)
+
+
+class ImportSchema(Schema):
+    month = fields.String(required=True)
+    create = fields.List(fields.Nested(ImportRowSchema), load_default=list,
+                         validate=validate.Length(max=card_import.MAX_ENTRIES))
+    link = fields.List(fields.Nested(ImportLinkSchema), load_default=list,
+                       validate=validate.Length(max=card_import.MAX_ENTRIES))
+
+
+def _import_month(raw: str | None) -> date | None:
+    if not raw:
+        return None
+    parsed = parse_month(raw)
+    if parsed is None:
+        raise ValidationError({"month": ["Use AAAA-MM."]})
+    return date(parsed[0], parsed[1], 1)
+
+
+@bp.post("/cards/<uuid:card_id>/import/preview")
+@login_required
+def import_preview(card_id):
+    """Lê o arquivo e mostra o que é novo e o que já está lançado; nada é gravado aqui."""
+    card = owned(CreditCard, card_id)
+    file = request.files.get("file")
+    if file is None:
+        return error("Envie o arquivo da fatura.", 422)
+    month = _import_month(request.form.get("month"))
+    requested = month_bounds(month.year, month.month)[1] if month else None
+    generate(g.user.id, generation_horizon(today(), requested))  # gastos fixos já na fatura
+    try:
+        result = card_import.preview(g.user.id, card, file.read(card_import.MAX_BYTES + 1), month)
+    except card_import.ImportProblem as exc:
+        return error(str(exc), 422)
+    return jsonify(result)
+
+
+@bp.post("/cards/<uuid:card_id>/import")
+@login_required
+def import_confirm(card_id):
+    card = owned(CreditCard, card_id)
+    if not card.active:
+        return error("Este cartão está desativado.", 409)
+    data = load_body(ImportSchema())
+    month = _import_month(data["month"])
+    ids = [r["external_id"] for r in data["create"] + data["link"]]
+    used = set(db.session.scalars(sa.select(Installment.external_id).where(
+        Installment.user_id == g.user.id, Installment.external_id.in_(ids),
+    )))
+    counts = {"created": 0, "linked": 0, "skipped": 0}
+
+    for row in data["link"]:
+        if row["external_id"] in used:
+            counts["skipped"] += 1
+            continue
+        item = db.session.get(Installment, row["installment_id"])
+        if item is None or item.user_id != g.user.id or item.purchase.card_id != card.id:
+            raise ValidationError({"link": ["Parcela não encontrada neste cartão."]})
+        card_import.link(item, row["external_id"], row["amount"])
+        used.add(row["external_id"])
+        counts["linked"] += 1
+
+    for row in data["create"]:
+        # Envio repetido (dois cliques, outra aba) não cria a mesma compra de novo.
+        if row["external_id"] in used:
+            counts["skipped"] += 1
+            continue
+        check_category(row["category_id"], "expense")
+        card_import.create(g.user.id, card, month, row)
+        used.add(row["external_id"])
+        counts["created"] += 1
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return error("Esta fatura já está sendo importada. Atualize a página.", 409)
+    return jsonify(counts), 201
+

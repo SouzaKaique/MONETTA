@@ -226,6 +226,34 @@ export interface CardDetail extends CreditCard {
   spending: { month: string; total: string }[];
 }
 
+export type ImportStatus = 'new' | 'existing' | 'fixed' | 'included' | 'imported' | 'payment' | 'credit';
+
+/** Uma linha do arquivo da fatura, já comparada com o que está no MONETTA. */
+export interface ImportRow {
+  external_id: string;
+  date: string;
+  memo: string;
+  description: string;
+  amount: string;
+  number: number;
+  count: number;
+  status: ImportStatus;
+  note: string | null;
+  installment_id: string | null;
+  category_id: string | null;
+}
+
+export interface ImportPreview {
+  month: string;
+  closing_date: string;
+  due_date: string;
+  invoice_total: string;
+  file_total: string;
+  rows: ImportRow[];
+  missing: { installment_id: string; description: string; amount: string; date: string;
+             fixed: boolean; number: number; count: number }[];
+}
+
 export interface Purchase {
   id: string;
   card_id: string;

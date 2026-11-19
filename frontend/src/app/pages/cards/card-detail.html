@@ -18,6 +18,9 @@
     <div class="d-flex gap-2 flex-wrap">
       @if (c.active) {
         <button type="button" class="btn btn-brand" (click)="buying.set(true)">Nova compra</button>
+        <button type="button" class="btn btn-quiet" (click)="importing.set(true)" title="Ler o arquivo OFX ou CSV do banco">
+          <i class="bi bi-upload me-1" aria-hidden="true"></i>Importar fatura
+        </button>
       }
       <button type="button" class="btn btn-quiet" (click)="editing.set(true)">Editar</button>
       <button type="button" class="btn btn-quiet" (click)="toggleActive(c)">{{ c.active ? 'Desativar' : 'Reativar' }}</button>
@@ -182,6 +185,7 @@
 
   @if (editing()) { <app-card-form [card]="c" (closed)="editing.set(false)" /> }
   @if (buying()) { <app-purchase-form [cardId]="c.id" (closed)="buying.set(false)" /> }
+  @if (importing()) { <app-import-bill [cardId]="c.id" (closed)="importing.set(false)" /> }
 
   @if (sharing(); as item) {
     <app-dialog #shareBox heading="Dividir ou anular" (closed)="sharing.set(null)">
