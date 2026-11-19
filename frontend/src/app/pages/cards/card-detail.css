@@ -58,3 +58,20 @@
 .share-note { color: var(--ink-2); display: block; font-size: 0.8rem; margin-top: 0.15rem; }
 .row-amount.annulled { color: var(--ink-3); text-decoration: line-through; }
 .share-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: flex-end; }
+
+.split-cards { display: grid; gap: 0.75rem; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 0.9rem; }
+.split {
+  background: var(--surface-2);
+  border-left: 3px solid var(--series-1);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.6rem 0.8rem;
+}
+.split.others { border-left-color: var(--ink-3); }
+.split-label { color: var(--ink-3); font-size: 0.75rem; }
+.split strong { font-size: 1.1rem; }
+.split-hint { color: var(--ink-3); font-size: 0.75rem; }
+@media (max-width: 400px) {
+  .split-cards { grid-template-columns: minmax(0, 1fr); }
+}
