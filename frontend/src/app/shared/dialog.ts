@@ -4,7 +4,7 @@ import { AfterViewInit, Component, ElementRef, input, output, viewChild } from '
 @Component({
   selector: 'app-dialog',
   template: `
-    <dialog #dialog (close)="closed.emit()" (cancel)="closed.emit()">
+    <dialog #dialog [class.wide]="wide()" (close)="closed.emit()" (cancel)="closed.emit()">
       <header>
         <h2>{{ heading() }}</h2>
         <button type="button" class="close" aria-label="Fechar" (click)="close()">
@@ -26,6 +26,7 @@ import { AfterViewInit, Component, ElementRef, input, output, viewChild } from '
       padding: 1.25rem;
       width: calc(100% - 2rem);
     }
+    dialog.wide { max-width: 760px; }
     dialog::backdrop { background: rgb(0 0 0 / 40%); }
     header { align-items: center; display: flex; justify-content: space-between; margin-bottom: 1rem; }
     h2 { font-family: var(--font-display); font-size: 1.25rem; font-weight: 400; margin: 0; }
@@ -42,6 +43,8 @@ import { AfterViewInit, Component, ElementRef, input, output, viewChild } from '
 })
 export class Dialog implements AfterViewInit {
   readonly heading = input.required<string>();
+  /** Para conteúdo em tabela, como a prévia da importação da fatura. */
+  readonly wide = input(false);
   readonly closed = output<void>();
   private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
 

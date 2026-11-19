@@ -34,6 +34,13 @@ Se o MONETTA já estiver ligado, o atalho só abre o navegador.
 
 Requisitos: os mesmos de **Rodar localmente**, com a primeira vez já feita, e a porta 80 livre.
 
+### Importar a fatura do cartão
+
+No app do Nubank, exporte a fatura em **OFX** (ou CSV). No MONETTA, abra o cartão e use
+**Importar fatura**. A prévia mostra o que é novo, o que já estava lançado (à mão, como gasto fixo
+ou parcela de compra antiga) e o que fica de fora (pagamento da fatura, estornos). Só as novas
+marcadas são gravadas, e importar o mesmo arquivo de novo não duplica nada.
+
 ## Rodar localmente
 
 Requisitos: Node 24, Python 3.14 e PostgreSQL 17 instalado.

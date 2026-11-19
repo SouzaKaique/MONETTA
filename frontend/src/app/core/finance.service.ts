@@ -3,7 +3,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { Observable, tap } from 'rxjs';
 import {
   Account, ApiTokenInfo, AppNotification, CalendarEvent, CardDetail, Category, CreditCard, Dashboard, Debt, DebtList,
-  DebtSimulation, DebtStrategy, Installment, Invoice, InvoiceDetail, Kind, Planning, Purchase,
+  DebtSimulation, DebtStrategy, ImportPreview, Installment, Invoice, InvoiceDetail, Kind, Planning, Purchase,
   PurchaseAdvice, Recovery, RecoveryImpact, Report, ReportPeriod, UntilSalary, WishlistData, WishlistItem, Recurrence, Transaction, TransactionPage, Transfer,
 } from './models';
 
@@ -164,6 +164,19 @@ export class FinanceService {
     return this.changed(this.http.post<Purchase>(`/api/cards/${cardId}/purchases`, body, {
       headers: { 'Idempotency-Key': idempotencyKey },
     }));
+  }
+
+  previewImport(cardId: string, file: File, month?: string): Observable<ImportPreview> {
+    const data = new FormData();
+    data.append('file', file);
+    if (month) data.append('month', month);
+    return this.http.post<ImportPreview>(`/api/cards/${cardId}/import/preview`, data);
+  }
+
+  confirmImport(cardId: string, body: object): Observable<{ created: number; linked: number; skipped: number }> {
+    return this.changed(this.http.post<{ created: number; linked: number; skipped: number }>(
+      `/api/cards/${cardId}/import`, body,
+    ));
   }
 
   updatePurchase(id: string, body: object): Observable<Purchase> {

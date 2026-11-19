@@ -108,6 +108,9 @@ class Installment(IdMixin, db.Model):
         sa.UniqueConstraint("purchase_id", "number"),
         sa.CheckConstraint("amount > 0", name="amount_positive"),
         sa.CheckConstraint("others_amount BETWEEN 0 AND amount", name="others_valid"),
+        # Uma linha do arquivo do banco vira uma parcela só: importar de novo não duplica.
+        sa.Index("uq_installments_external", "user_id", "external_id", unique=True,
+                 postgresql_where=sa.text("external_id IS NOT NULL")),
     )
 
     user_id: Mapped[UUID] = mapped_column(sa.ForeignKey("users.id", ondelete="CASCADE"), index=True)
@@ -116,6 +119,8 @@ class Installment(IdMixin, db.Model):
     number: Mapped[int]
     amount: Mapped[Money]
     others_amount: Mapped[Money] = mapped_column(default=Decimal("0.00"), server_default="0")
+    # Linha da fatura importada (OFX/CSV) que corresponde a esta parcela.
+    external_id: Mapped[str | None] = mapped_column(sa.String(64))
 
     @classmethod
     def own_amount(cls):
